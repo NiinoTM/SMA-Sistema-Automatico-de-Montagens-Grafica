@@ -453,7 +453,7 @@ function initiateProcess(mode) {
     // Reset Globals (defined in utils.js - this re-initializes them)
     globalStrategyResults = []; globalOriginalItems = []; globalUniqueLpdValues = []; globalUserLpdCombinationWithDuplicates = []; globalLpdInstanceCounts = {}; globalInitialTotalSlotsPerValue = {}; globalMaxSlotsPerInstance = Infinity; globalMaxSlotsDisplay = "Ilimitado";
 
-    // Input validation
+    // Input validation (Max Slots, Combo Size)
     if (!tableDataInput) { finderResultsLogDiv.innerHTML = '<span class="error">Erro: Dados da tabela vazios.</span>'; return; }
     if (!maxSlotsInput) { finderResultsLogDiv.innerHTML = '<span class="error">Erro: "Imagens no Plano" é obrigatório.</span>'; return; }
     if (!combinationSizeInput) { finderResultsLogDiv.innerHTML = '<span class="error">Erro: "Quantidade de Planos" é obrigatório.</span>'; return; }
@@ -461,34 +461,33 @@ function initiateProcess(mode) {
      try { maxSlotsPerInstance = parseInt(maxSlotsInput); if (isNaN(maxSlotsPerInstance) || maxSlotsPerInstance < 1) throw new Error('"Imagens no Plano" >= 1.'); globalMaxSlotsPerInstance = maxSlotsPerInstance; globalMaxSlotsDisplay = String(maxSlotsPerInstance); } catch (e) { finderResultsLogDiv.innerHTML = `<span class="error">Erro de Entrada: ${e.message}</span>`; return; } // Set globals
      try { combinationSize = parseInt(combinationSizeInput); if (isNaN(combinationSize) || combinationSize < 1) throw new Error('"Quantidade de Planos" >= 1.'); } catch (e) { finderResultsLogDiv.innerHTML = `<span class="error">Erro de Entrada: ${e.message}</span>`; return; }
 
-    // Input Parsing (Robust version)
-    let parsedItems = []; let parseErrors = []; const lines = tableDataInput.split('\n'); let minRawAmount = Infinity, maxRawAmount = -Infinity, sumRawAmount = 0, validItemCount = 0;
-    lines.forEach((line, index) => {
-        line = line.trim(); if (!line) return;
-        let details = ''; let amountStrRaw = ''; let parts = line.split('\t');
-        if (parts.length >= 2) { amountStrRaw = parts[parts.length - 1]; details = parts.slice(0, -1).join('\t'); }
-        else { const lastSpaceIndex = line.lastIndexOf(' ');
-            if (lastSpaceIndex === -1 || lastSpaceIndex === 0) { parts = line.split(/\s+/); if (parts.length >= 2) { amountStrRaw = parts[parts.length - 1]; details = parts.slice(0, -1).join(' '); } else { parseErrors.push(`L${index + 1}: Formato inválido: "${line}"`); return; } }
-            else { amountStrRaw = line.substring(lastSpaceIndex + 1); details = line.substring(0, lastSpaceIndex); }
-        }
-        let amountStrClean = amountStrRaw.replace(/[R$€]/g, '').trim();
-        let amountStrParsed = amountStrClean.replace(/\./g, '').replace(/,/g, '.');
-        const amount = parseFloat(amountStrParsed);
-        if (isNaN(amount)) { parseErrors.push(`L${index + 1}: Quantidade inválida ('${amountStrRaw}') para "${details}"`); return; }
-        if (amount < 0) { parseErrors.push(`L${index + 1}: Quantidade negativa (${amount}) para "${details}"`); return; }
-        const roundedAmount = Math.round(amount);
-        parsedItems.push({ details: details, amount: roundedAmount, originalIndex: index });
-        sumRawAmount += roundedAmount; validItemCount++;
-        if (roundedAmount < minRawAmount) minRawAmount = roundedAmount;
-        if (roundedAmount > maxRawAmount) maxRawAmount = roundedAmount;
-    });
+    // --- REVISED PARSING SECTION ---
+    // **** CALL TO processing-logic.js ****
+    const parseResult = parseTableData(tableDataInput);
+    const parsedItems = parseResult.items;
+    const parseErrors = parseResult.errors;
+    const validItemCount = parseResult.count;
+    const sumRawAmount = parseResult.sumAmount;
+    const minRawAmount = parseResult.minAmount;
+    const maxRawAmount = parseResult.maxAmount;
 
-    if (parseErrors.length > 0) { finderResultsLogDiv.innerHTML = `<span class="error">Erros ao Processar Entradas:</span>\n${parseErrors.join('\n')}`; return; }
-    if (parsedItems.length === 0) { finderResultsLogDiv.innerHTML = `<span class="error">Erro: Nenhuma Especificação válida processada. Verifique o formato da entrada.</span>`; return; }
+    // Update the counter display explicitly here as well, in case the input event didn't fire
+    updateItemCountDisplay(); // Function is in this file
+
+    if (parseErrors.length > 0) {
+        finderResultsLogDiv.innerHTML = `<span class="error">Erros ao Processar Entradas:</span>\n${parseErrors.join('\n')}`;
+        return;
+    }
+    if (validItemCount === 0) { // Use validItemCount now
+        finderResultsLogDiv.innerHTML = `<span class="error">Erro: Nenhuma Especificação válida processada. Verifique o formato da entrada.</span>`;
+        return;
+    }
     globalOriginalItems = parsedItems; // Set global
     console.log(`Processados ${validItemCount} Especificações. Soma: ${sumRawAmount}, Mín: ${minRawAmount === Infinity ? 'N/A' : minRawAmount}, Máx: ${maxRawAmount === -Infinity ? 'N/A' : maxRawAmount}`);
+    // --- END OF REVISED PARSING SECTION ---
 
-    // Generate Combination
+
+    // Generate Combination (setTimeout block)
     finderResultsLogDiv.innerHTML = `Gerando Combinação (Modo: ${mode})...`;
     setTimeout(() => {
         try {
@@ -498,47 +497,47 @@ function initiateProcess(mode) {
             if (mode === 'findBest') {
                 console.log("Chamando findBestLpdCombination...");
                 // **** CALL TO processing-logic.js ****
-                combinationResult = findBestLpdCombination(globalOriginalItems, maxSlotsPerInstance, combinationSize);
+                combinationResult = findBestLpdCombination(globalOriginalItems, maxSlotsPerInstance, combinationSize); // Pass parsed items
                 combinationMethodDescription = "Otimização por Frequência de Divisores";
             } else if (mode === 'forceProportional') {
                 console.log("Chamando calculateDirectProportionalCombination...");
                 // **** CALL TO processing-logic.js ****
-                combinationResult = calculateDirectProportionalCombination(globalOriginalItems, maxSlotsPerInstance, combinationSize);
+                combinationResult = calculateDirectProportionalCombination(globalOriginalItems, maxSlotsPerInstance, combinationSize); // Pass parsed items
                 combinationMethodDescription = "Distribuição Proporcional Direta";
             } else { throw new Error(`Modo desconhecido: ${mode}`); }
 
-            finderResultsLogDiv.innerHTML = combinationResult.log;
+             finderResultsLogDiv.innerHTML = combinationResult.log;
 
-            if (combinationResult.status === "Error" || !combinationResult.combination) {
-                foundCombinationDisplayDiv.innerHTML = `<span class="error">Geração da Combinação falhou (Modo: ${mode}). Verifique o log acima.</span>`;
-                statusAreaDiv.innerHTML = "Alocador Abortado (Falha na Combinação).";
-                return;
-            } else if (combinationResult.combination.length === 0) {
-                 foundCombinationDisplayDiv.innerHTML = `<span class="warning">Geração da Combinação resultou em lista vazia []. Prosseguindo para Alocador sem Planos.</span>`;
-                 statusAreaDiv.innerHTML = "Combinação vazia. Executando Alocador...";
+             if (combinationResult.status === "Error" || !combinationResult.combination) {
+                 foundCombinationDisplayDiv.innerHTML = `<span class="error">Geração da Combinação falhou (Modo: ${mode}). Verifique o log acima.</span>`;
+                 statusAreaDiv.innerHTML = "Alocador Abortado (Falha na Combinação).";
+                 return;
+             } else if (combinationResult.combination.length === 0) {
+                  foundCombinationDisplayDiv.innerHTML = `<span class="warning">Geração da Combinação resultou em lista vazia []. Prosseguindo para Alocador sem Planos.</span>`;
+                  statusAreaDiv.innerHTML = "Combinação vazia. Executando Alocador...";
+                  // Set globals from utils.js
+                  globalUserLpdCombinationWithDuplicates = [];
+                  globalUniqueLpdValues = [];
+                  globalLpdInstanceCounts = {};
+                  globalInitialTotalSlotsPerValue = {};
+             } else {
                  // Set globals from utils.js
-                 globalUserLpdCombinationWithDuplicates = [];
-                 globalUniqueLpdValues = [];
-                 globalLpdInstanceCounts = {};
-                 globalInitialTotalSlotsPerValue = {};
-            } else {
-                // Set globals from utils.js
-                globalUserLpdCombinationWithDuplicates = combinationResult.combination;
-                globalUniqueLpdValues = [...new Set(globalUserLpdCombinationWithDuplicates)].sort((a, b) => a - b);
-                globalLpdInstanceCounts = {}; globalUserLpdCombinationWithDuplicates.forEach(lpd => { globalLpdInstanceCounts[lpd] = (globalLpdInstanceCounts[lpd] || 0) + 1; });
-                globalInitialTotalSlotsPerValue = {}; globalUniqueLpdValues.forEach(lpd => { const instances = globalLpdInstanceCounts[lpd] || 0; globalInitialTotalSlotsPerValue[lpd] = globalMaxSlotsPerInstance !== Infinity ? (instances * globalMaxSlotsPerInstance) : Infinity; });
+                 globalUserLpdCombinationWithDuplicates = combinationResult.combination;
+                 globalUniqueLpdValues = [...new Set(globalUserLpdCombinationWithDuplicates)].sort((a, b) => a - b);
+                 globalLpdInstanceCounts = {}; globalUserLpdCombinationWithDuplicates.forEach(lpd => { globalLpdInstanceCounts[lpd] = (globalLpdInstanceCounts[lpd] || 0) + 1; });
+                 globalInitialTotalSlotsPerValue = {}; globalUniqueLpdValues.forEach(lpd => { const instances = globalLpdInstanceCounts[lpd] || 0; globalInitialTotalSlotsPerValue[lpd] = globalMaxSlotsPerInstance !== Infinity ? (instances * globalMaxSlotsPerInstance) : Infinity; });
 
-                console.log("Resultado Combinação (Valores):", globalUserLpdCombinationWithDuplicates);
-                console.log("Resultado Combinação (Únicos):", globalUniqueLpdValues);
-                console.log("Resultado Combinação (Contagens):", globalLpdInstanceCounts);
-                console.log("Resultado Combinação (Imagens Iniciais):", globalInitialTotalSlotsPerValue);
+                 console.log("Resultado Combinação (Valores):", globalUserLpdCombinationWithDuplicates);
+                 console.log("Resultado Combinação (Únicos):", globalUniqueLpdValues);
+                 console.log("Resultado Combinação (Contagens):", globalLpdInstanceCounts);
+                 console.log("Resultado Combinação (Imagens Iniciais):", globalInitialTotalSlotsPerValue);
 
-                foundCombinationDisplayDiv.innerHTML = `Combinação Gerada (<span class="info">${combinationMethodDescription}</span>): <b>[${globalUserLpdCombinationWithDuplicates.join(', ')}]</b> (Tamanho: ${globalUserLpdCombinationWithDuplicates.length})`;
-                statusAreaDiv.innerHTML = `Combinação completa (Modo: ${mode}). Executando Alocador...`;
-            }
+                 foundCombinationDisplayDiv.innerHTML = `Combinação Gerada (<span class="info">${combinationMethodDescription}</span>): <b>[${globalUserLpdCombinationWithDuplicates.join(', ')}]</b> (Tamanho: ${globalUserLpdCombinationWithDuplicates.length})`;
+                 statusAreaDiv.innerHTML = `Combinação completa (Modo: ${mode}). Executando Alocador...`;
+             }
 
-            // Run Allocator Phase (Function is in this file)
-            runAllocatorPhase();
+             // Run Allocator Phase (Function is in this file)
+             runAllocatorPhase();
 
         } catch (combinationError) {
             console.error(`Erro durante Geração da Combinação (Modo: ${mode}):`, combinationError);
@@ -549,6 +548,24 @@ function initiateProcess(mode) {
     }, 10); // End setTimeout for Combination
 
 } // Fim initiateProcess
+
+
+// --- NEW FUNCTION TO UPDATE THE COUNT DISPLAY ---
+function updateItemCountDisplay() {
+    const textarea = document.getElementById('tableData');
+    const displayElement = document.getElementById('itemCountDisplay');
+    if (!textarea || !displayElement) {
+        console.warn("Could not find textarea or display element for item count.");
+        return;
+    }
+
+    // **** CALL TO processing-logic.js ****
+    const parseResult = parseTableData(textarea.value);
+    const count = parseResult.count; // Get count from the result object
+
+    displayElement.textContent = `Total de Imagens: ${count}`;
+}
+
 
 // --- toggleErrorStrategies function ---
 function toggleErrorStrategies() {
@@ -871,3 +888,17 @@ function displayStrategyDetails(encodedStrategyName) { // exibirDetalhesEstrateg
      }
      console.log(`[displayStrategyDetails] END for: ${strategyName}`);
 } // End displayStrategyDetails
+
+
+// --- ADD EVENT LISTENER AND INITIAL CALL ---
+// Ensure the DOM is loaded before adding listener (defer helps, but this is safer)
+document.addEventListener('DOMContentLoaded', () => {
+    const tableDataTextarea = document.getElementById('tableData');
+    if (tableDataTextarea) {
+        tableDataTextarea.addEventListener('input', updateItemCountDisplay);
+        // Call it once on load to set initial value
+        updateItemCountDisplay();
+    } else {
+        console.error("Could not find tableData textarea to attach listener.");
+    }
+});
