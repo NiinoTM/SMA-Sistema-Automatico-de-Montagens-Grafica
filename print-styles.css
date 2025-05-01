@@ -28,24 +28,60 @@ body {
     line-height: 1.3; /* Reduzido de 1.4 para 1.3 */
     font-family: Arial, sans-serif !important;
     margin: 0 !important; /* Garantir que não haja margens extras */
+    /* Ensure only the desired sections are visible */
+    visibility: hidden !important; /* Hide everything initially */
 }
 
-/* Hide non-essential elements when printing */
+/* Explicitly show the desired printable sections and their parents */
+body > #lpdBreakdown,
+body > #finalSummaryTableDiv {
+    visibility: visible !important;
+    display: block !important; /* Ensure they take up space */
+    width: 100% !important;
+    position: relative; /* Ensure they are positioned correctly */
+}
+/* Make content inside the desired sections visible */
+#lpdBreakdown *,
+#finalSummaryTableDiv * {
+    visibility: visible !important;
+}
+
+
+/* Hide non-essential elements - comprehensive list */
 #sidebar,
-button,
-hr,
-#inputSection,
-#inputSection + p,
-.input-group,
-#finderTitle, #finderResultsLog, #foundCombinationDisplay,
-#allocatorTitle, #statusArea, #strategyComparison,
-#detailsTitle,
-#allocationResults, #adjustmentLog, #variationLog, #refinementLog, #cumulativeUsage,
-#finalSummaryTableDiv ~ button, #lpdBreakdown ~ button {
+button, /* Hides ALL buttons */
+hr, /* Hides ALL hr elements */
+body > h1, /* Hide the main page title */
+body > h1 + p, /* Hide the intro paragraph */
+.input-group, /* Hides label/input wrappers */
+#inputSection, /* Hides the main input section container */
+.action-buttons-container, /* Hide the container for main action buttons */
+#itemCountDisplay, /* Hide item count display */
+#finderTitle, /* Section title */
+#finderStatusDisplay, /* Hide the status display under actions */
+#finderResultsLog, /* Hide the detailed finder log */
+#combinationSummaryTitle, /* Hide the Combo Summary title */
+#combinationSummaryTableDiv, /* Hide the Combo Summary table container */
+#allocatorTitle, /* Section title */
+#statusArea, /* Allocator status */
+#strategyComparison, /* Strategy comparison table container */
+#detailsSeparator, /* Hide the HR separator before detailed results */
+#detailsTitle, /* Section title */
+#allocationResults, /* Details section */
+#adjustmentLog, /* Details section */
+#variationLog, /* Details section */
+#refinementLog, /* Details section */
+#cumulativeUsage, /* Details section */
+/* Remove specific button hiding rules as all buttons are hidden now */
+/* #finalSummaryTableDiv ~ button, #lpdBreakdown ~ button, */
+#foundCombinationDisplay /* Just in case */
+{
     display: none !important;
+    visibility: hidden !important; /* Extra safety */
 }
 
 /* Reset styles for main printable content containers */
+/* Keep these styles as they ensure proper formatting for the visible sections */
 #lpdBreakdown, #finalSummaryTableDiv {
     margin: 0 !important;
     padding: 0 !important;
@@ -60,19 +96,20 @@ hr,
 /* Otimização para quebra de página */
 #finalSummaryTableDiv {
     page-break-before: always !important;
-    margin-top: 5mm !important; /* Reduzido de 10mm para 5mm */
+    margin-top: 5mm !important; /* Consistent spacing after page break */
 }
 
 /* Style the overall title for #lpdBreakdown in print */
 #lpdBreakdown > .lpd-section-title {
     text-align: center;
-    font-size: 12pt; /* Reduzido de 14pt para 12pt */
+    font-size: 8pt; /* Reduzido de 14pt para 12pt */
     margin-bottom: 5px; /* Reduzido de 10px para 5px */
     color: var(--print-text-primary) !important;
     font-weight: bold;
     border-bottom: 1px solid var(--print-border);
     padding-bottom: 3px; /* Reduzido de 5px para 3px */
-    display: block !important;
+    display: block !important; /* Ensure it shows */
+    visibility: visible !important; /* Ensure it shows */
 }
 
 /* Light mode styling for plan containers */
@@ -95,6 +132,8 @@ hr,
     border-bottom: 1px solid var(--print-primary) !important;
     padding-bottom: 3px !important; /* Reduzido de 5px para 3px */
     font-weight: 600 !important;
+    display: block !important; /* Ensure it shows */
+    visibility: visible !important; /* Ensure it shows */
 }
 
 #lpdBreakdown .plan-container table {
@@ -102,6 +141,7 @@ hr,
     border-collapse: collapse !important;
     margin-bottom: 5px !important; /* Reduzido de 10px para 5px */
     font-size: 8pt !important; /* Reduzido de 9pt para 8pt */
+    page-break-inside: avoid !important; /* Added explicitly */
 }
 
 #lpdBreakdown .plan-container th,
@@ -118,6 +158,8 @@ hr,
     color: white !important;
     font-weight: bold !important;
     text-align: center !important;
+    display: table-cell !important; /* Ensure header cells show */
+    visibility: visible !important;
 }
 
 /* Center align specific columns */
@@ -161,6 +203,8 @@ hr,
     font-size: 9pt !important; /* Match body font size */
     border-radius: 3px !important;
     page-break-before: avoid !important; /* Still try to avoid break */
+    display: block !important; /* Ensure it shows */
+    visibility: visible !important; /* Ensure it shows */
 }
 
 
@@ -173,7 +217,9 @@ hr,
     font-weight: bold !important;
     border-bottom: 1px solid var(--print-primary) !important;
     padding-bottom: 3px !important; /* Reduzido de 5px para 3px */
-    display: block !important;
+    display: block !important; /* Ensure it shows */
+    visibility: visible !important; /* Ensure it shows */
+    page-break-after: avoid !important; /* ADD THIS LINE */
 }
 
 #finalSummaryTable {
@@ -185,10 +231,13 @@ hr,
     box-shadow: none !important; /* Removida a sombra */
     border-radius: 3px !important; /* Reduzido de 4px para 3px */
     overflow: hidden !important;
+    page-break-inside: avoid !important; /* Keep this */
+    page-break-before: avoid !important; /* ADD THIS LINE */
 }
 
-#finalSummaryTable thead { display: table-header-group; }
-#finalSummaryTable tfoot { display: table-footer-group; }
+#finalSummaryTable thead { display: table-header-group !important; visibility: visible !important; } /* Ensure header group shows */
+#finalSummaryTable tfoot { display: table-footer-group !important; visibility: visible !important; } /* Ensure footer group shows */
+#finalSummaryTable tbody { display: table-row-group !important; visibility: visible !important; } /* Ensure body group shows */
 
 #finalSummaryTable th,
 #finalSummaryTable td {
@@ -205,6 +254,8 @@ hr,
     color: white !important;
     border-bottom: 1px solid var(--print-border) !important;
     text-align: center !important;
+    display: table-cell !important; /* Ensure header cells show */
+    visibility: visible !important;
 }
 
 #finalSummaryTable td:nth-child(n+2) {
@@ -269,10 +320,12 @@ hr,
 }
 
 /* Otimização para evitar quebras de página indesejadas */
-table {
+/* These are still useful for the content *within* the sections */
+table, tr, td, th {
     page-break-inside: avoid !important;
 }
 
-tr {
-    page-break-inside: avoid !important;
+/* Ensure spans within visible elements are also visible */
+span {
+    visibility: visible !important;
 }

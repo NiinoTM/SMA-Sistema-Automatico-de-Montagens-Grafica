@@ -289,7 +289,7 @@ function displayCombinationSummary(combinationPerformance) {
     });
 
     let html = `<div class="comparison-title">--- Resumo do Desempenho por Combinação ---</div>`;
-    html += `<p style="font-size: 0.8rem; color: var(--text-muted); margin-top: -0.5rem; margin-bottom: 0.5rem;">Clique em uma combinação para ver a análise detalhada das estratégias.</p>`;
+    html += `<p style="font-size: 0.8rem; color: var(--text-muted); margin-top: 0.5rem; margin-bottom: 0.5rem;">Clique em uma combinação para ver a análise detalhada das estratégias.</p>`;
     html += `<table id="combinationSummaryTable"><thead><tr><th>#</th><th>Combinação de Planos</th><th>Melhor Var Máx</th><th>Melhor Var Média</th><th>Melhor Estratégia</th><th>Resultado</th></tr></thead><tbody>`;
 
     combinationPerformance.forEach((perf, index) => {
