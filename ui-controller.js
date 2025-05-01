@@ -19,8 +19,10 @@ function initiateProcess(mode) {
     const tableDataInput = document.getElementById('tableData').value.trim();
     const maxSlotsInput = document.getElementById('maxSlots').value.trim();
     const combinationSizeInput = document.getElementById('combinationSize').value.trim();
-    // --- Get UI Elements ---
+    // --- Get UI Elements (Add new ones) ---
+    const finderStatusDisplay = document.getElementById('finderStatusDisplay'); // NEW
     const finderResultsLogDiv = document.getElementById('finderResultsLog');
+    const toggleLogBtn = document.getElementById('toggleLogBtn'); // NEW
     const combinationSummaryTitle = document.getElementById('combinationSummaryTitle');
     const combinationSummaryTableDiv = document.getElementById('combinationSummaryTableDiv');
     const statusAreaDiv = document.getElementById('statusArea');
@@ -37,48 +39,68 @@ function initiateProcess(mode) {
     const detailsSeparatorHr = document.getElementById('detailsSeparator');
 
 
-    // --- Clear previous results (more extensive clearing) ---
-    finderResultsLogDiv.innerHTML = `Processando Entradas...`;
-    combinationSummaryTitle.style.display = 'none';
-    combinationSummaryTableDiv.innerHTML = '';
-    statusAreaDiv.innerHTML = ''; statusAreaDiv.style.display = 'none';
-    strategyComparisonDiv.innerHTML = ''; strategyComparisonDiv.style.display = 'none';
-    allocationResultsDiv.innerHTML = ''; allocationResultsDiv.style.display = 'none';
-    adjustmentLogDiv.innerHTML = ''; adjustmentLogDiv.style.display = 'none';
-    variationLogDiv.innerHTML = ''; variationLogDiv.style.display = 'none';
-    cumulativeUsageDiv.innerHTML = ''; cumulativeUsageDiv.style.display = 'none';
-    refinementLogDiv.innerHTML = ''; refinementLogDiv.style.display = 'none';
-    lpdBreakdownDiv.innerHTML = ''; lpdBreakdownDiv.style.display = 'none';
-    finalSummaryTableDiv.innerHTML = ''; finalSummaryTableDiv.style.display = 'none';
-    detailsTitleH2.innerHTML = 'Resultados Detalhados da Alocação'; detailsTitleH2.style.display = 'none';
-    allocatorTitleH2.style.display = 'none';
-    detailsSeparatorHr.style.display = 'none';
+    // --- Clear previous results (Update clearing) ---
+    // Clear status display and hide log
+    if (finderStatusDisplay) finderStatusDisplay.innerHTML = `Processando Entradas...`; else console.error("Element not found: finderStatusDisplay");
+    if (finderResultsLogDiv) {
+        finderResultsLogDiv.innerHTML = ''; // Clear content
+        finderResultsLogDiv.classList.add('log-hidden'); // Ensure it's hidden
+    } else console.error("Element not found: finderResultsLogDiv");
+    if (toggleLogBtn) {
+        toggleLogBtn.textContent = 'Mostrar Log Detalhado';
+        toggleLogBtn.style.display = 'none'; // Keep hidden initially
+    } else console.error("Element not found: toggleLogBtn");
+
+
+    // Clear other sections (check elements exist)
+    if (combinationSummaryTitle) combinationSummaryTitle.style.display = 'none'; else console.error("Element not found: combinationSummaryTitle");
+    if (combinationSummaryTableDiv) combinationSummaryTableDiv.innerHTML = ''; else console.error("Element not found: combinationSummaryTableDiv");
+    if (statusAreaDiv) { statusAreaDiv.innerHTML = ''; statusAreaDiv.style.display = 'none'; } else { console.error("Element not found: statusAreaDiv"); }
+    if (strategyComparisonDiv) { strategyComparisonDiv.innerHTML = ''; strategyComparisonDiv.style.display = 'none'; } else { console.error("Element not found: strategyComparisonDiv"); }
+    if (allocationResultsDiv) { allocationResultsDiv.innerHTML = ''; allocationResultsDiv.style.display = 'none'; } else { console.error("Element not found: allocationResultsDiv"); }
+    if (adjustmentLogDiv) { adjustmentLogDiv.innerHTML = ''; adjustmentLogDiv.style.display = 'none'; } else { console.error("Element not found: adjustmentLogDiv"); }
+    if (variationLogDiv) { variationLogDiv.innerHTML = ''; variationLogDiv.style.display = 'none'; } else { console.error("Element not found: variationLogDiv"); }
+    if (cumulativeUsageDiv) { cumulativeUsageDiv.innerHTML = ''; cumulativeUsageDiv.style.display = 'none'; } else { console.error("Element not found: cumulativeUsageDiv"); }
+    if (refinementLogDiv) { refinementLogDiv.innerHTML = ''; refinementLogDiv.style.display = 'none'; } else { console.error("Element not found: refinementLogDiv"); }
+    if (lpdBreakdownDiv) { lpdBreakdownDiv.innerHTML = ''; lpdBreakdownDiv.style.display = 'none'; } else { console.error("Element not found: lpdBreakdownDiv"); }
+    if (finalSummaryTableDiv) { finalSummaryTableDiv.innerHTML = ''; finalSummaryTableDiv.style.display = 'none'; } else { console.error("Element not found: finalSummaryTableDiv"); }
+    if (detailsTitleH2) { detailsTitleH2.innerHTML = 'Resultados Detalhados da Alocação'; detailsTitleH2.style.display = 'none'; } else { console.error("Element not found: detailsTitleH2"); }
+    if (allocatorTitleH2) { allocatorTitleH2.style.display = 'none'; } else { console.error("Element not found: allocatorTitleH2"); }
+    if (detailsSeparatorHr) { detailsSeparatorHr.style.display = 'none'; } else { console.error("Element not found: detailsSeparatorHr"); }
+
     globalCurrentlyDisplayedStrategyName = null;
     globalCombinationStrategyResultsCache = {}; // Clear cache
-
 
     // --- Reset Globals (uses globals from utils.js) ---
     globalStrategyResults = []; globalOriginalItems = []; globalUniqueLpdValues = []; globalUserLpdCombinationWithDuplicates = []; globalLpdInstanceCounts = {}; globalInitialTotalSlotsPerValue = {}; globalMaxSlotsPerInstance = Infinity; globalMaxSlotsDisplay = "Ilimitado";
 
     // --- Input validation & Parsing ---
-    if (!tableDataInput) { finderResultsLogDiv.innerHTML = '<span class="error">Erro: Dados da tabela vazios.</span>'; return; }
-    if (!maxSlotsInput) { finderResultsLogDiv.innerHTML = '<span class="error">Erro: "Imagens no Plano" é obrigatório.</span>'; return; }
-    if (!combinationSizeInput) { finderResultsLogDiv.innerHTML = '<span class="error">Erro: "Quantidade de Planos" é obrigatório.</span>'; return; }
+    if (!tableDataInput) { if (finderStatusDisplay) finderStatusDisplay.innerHTML = '<span class="error">Erro: Dados da tabela vazios.</span>'; return; }
+    if (!maxSlotsInput) { if (finderStatusDisplay) finderStatusDisplay.innerHTML = '<span class="error">Erro: "Imagens no Plano" é obrigatório.</span>'; return; }
+    if (!combinationSizeInput) { if (finderStatusDisplay) finderStatusDisplay.innerHTML = '<span class="error">Erro: "Quantidade de Planos" é obrigatório.</span>'; return; }
     let maxSlotsPerInstance; let combinationSize;
-     try { maxSlotsPerInstance = parseInt(maxSlotsInput); if (isNaN(maxSlotsPerInstance) || maxSlotsPerInstance < 1) throw new Error('"Imagens no Plano" >= 1.'); globalMaxSlotsPerInstance = maxSlotsPerInstance; globalMaxSlotsDisplay = String(maxSlotsPerInstance); } catch (e) { finderResultsLogDiv.innerHTML = `<span class="error">Erro de Entrada: ${e.message}</span>`; return; } // Set globals
-     try { combinationSize = parseInt(combinationSizeInput); if (isNaN(combinationSize) || combinationSize < 1) throw new Error('"Quantidade de Planos" >= 1.'); } catch (e) { finderResultsLogDiv.innerHTML = `<span class="error">Erro de Entrada: ${e.message}</span>`; return; }
+     try { maxSlotsPerInstance = parseInt(maxSlotsInput); if (isNaN(maxSlotsPerInstance) || maxSlotsPerInstance < 1) throw new Error('"Imagens no Plano" >= 1.'); globalMaxSlotsPerInstance = maxSlotsPerInstance; globalMaxSlotsDisplay = String(maxSlotsPerInstance); } catch (e) { if (finderStatusDisplay) finderStatusDisplay.innerHTML = `<span class="error">Erro de Entrada: ${e.message}</span>`; return; } // Set globals
+     try { combinationSize = parseInt(combinationSizeInput); if (isNaN(combinationSize) || combinationSize < 1) throw new Error('"Quantidade de Planos" >= 1.'); } catch (e) { if (finderStatusDisplay) finderStatusDisplay.innerHTML = `<span class="error">Erro de Entrada: ${e.message}</span>`; return; }
 
     // **** CALL TO processing-logic.js ****
     const parseResult = parseTableData(tableDataInput);
-    if (parseResult.errors.length > 0) { finderResultsLogDiv.innerHTML = `<span class="error">Erros ao Processar Entradas:</span>\n${parseResult.errors.join('\n')}`; return; }
-    if (parseResult.count === 0) { finderResultsLogDiv.innerHTML = `<span class="error">Erro: Nenhuma Especificação válida processada.</span>`; return; }
+    // Check for parsing errors and update status display
+    if (parseResult.errors.length > 0) {
+        if (finderStatusDisplay) finderStatusDisplay.innerHTML = `<span class="error">Erros ao Processar Entradas. Verifique o Log Detalhado.</span>`;
+        if(finderResultsLogDiv) finderResultsLogDiv.innerHTML = `<span class="error">Erros ao Processar Entradas:</span>\n${parseResult.errors.join('\n')}`;
+        // Show log and button if there are parsing errors
+        if (finderResultsLogDiv) finderResultsLogDiv.classList.remove('log-hidden');
+        if (toggleLogBtn) toggleLogBtn.style.display = 'inline-flex';
+        return;
+     }
+    if (parseResult.count === 0) { if (finderStatusDisplay) finderStatusDisplay.innerHTML = `<span class="error">Erro: Nenhuma Especificação válida processada.</span>`; return; }
     globalOriginalItems = parseResult.items; // Set global original items ONCE
     // **** CALLS TO this file (ui-controller.js) ****
     updateItemCountDisplay(); checkCombinationSizeWarning();
     console.log(`Processados ${parseResult.count} Especificações.`);
 
     // --- Generate Combinations (Timeout block) ---
-    finderResultsLogDiv.innerHTML = `Gerando Combinações (Modo: ${mode})...`;
+    if (finderStatusDisplay) finderStatusDisplay.innerHTML = `Gerando Combinações (Modo: ${mode})...`; // Update status
     setTimeout(() => {
         try {
             let combinationResult = null;
@@ -101,29 +123,40 @@ function initiateProcess(mode) {
                 }
             } else { throw new Error(`Modo desconhecido: ${mode}`); }
 
-            finderResultsLogDiv.innerHTML = combinationResult.log; // Display the log from the finder
+            // Write FULL log to the hidden div
+            if (finderResultsLogDiv) finderResultsLogDiv.innerHTML = combinationResult.log;
 
+             // SHOW the toggle button now that there's a log to potentially show
+             if (toggleLogBtn) toggleLogBtn.style.display = 'inline-flex';
+
+            // Handle combination generation errors/results
             if (combinationResult.status === "Error" || !combinationResult.combinations) {
-                combinationSummaryTitle.style.display = 'block'; // Show title even for error
-                combinationSummaryTableDiv.innerHTML = `<span class="error">Geração de Combinações falhou (Modo: ${mode}). Verifique o log acima.</span>`;
+                if (combinationSummaryTitle) combinationSummaryTitle.style.display = 'block';
+                if (combinationSummaryTableDiv) combinationSummaryTableDiv.innerHTML = `<span class="error">Geração de Combinações falhou (Modo: ${mode}). Verifique o log detalhado.</span>`;
+                if (finderStatusDisplay) finderStatusDisplay.innerHTML = `<span class="error">Falha na geração de combinações.</span>`; // Update status
+                if (finderResultsLogDiv) finderResultsLogDiv.classList.remove('log-hidden'); // Show log on error
                 return;
             }
             if (combinationResult.combinations.length === 0) {
-                 combinationSummaryTitle.style.display = 'block'; // Show title even for warning
-                combinationSummaryTableDiv.innerHTML = `<span class="warning">Nenhuma combinação válida encontrada (Modo: ${mode}). Verifique o log e os parâmetros.</span>`;
+                 if (combinationSummaryTitle) combinationSummaryTitle.style.display = 'block';
+                if (combinationSummaryTableDiv) combinationSummaryTableDiv.innerHTML = `<span class="warning">Nenhuma combinação válida encontrada (Modo: ${mode}). Verifique o log detalhado e os parâmetros.</span>`;
+                if (finderStatusDisplay) finderStatusDisplay.innerHTML = `<span class="warning">Nenhuma combinação encontrada.</span>`; // Update status
+                 if (finderResultsLogDiv) finderResultsLogDiv.classList.remove('log-hidden'); // Show log if nothing found
                 return;
             }
 
-            finderResultsLogDiv.innerHTML += `<hr><b>${combinationResult.combinations.length} combinações únicas encontradas.</b> Processando estratégias para cada uma...`;
+            // Initial status update before processing loop
+            if (finderStatusDisplay) finderStatusDisplay.innerHTML = `<b>${combinationResult.combinations.length} combinações únicas encontradas.</b> Iniciando processamento das estratégias...`;
 
             // --- Process Each Combination ---
             let combinationPerformance = [];
             let combinationsProcessed = 0;
+            const totalCombinations = combinationResult.combinations.length; // Store total
 
             function processNextCombination() {
-                if (combinationsProcessed >= combinationResult.combinations.length) {
+                if (combinationsProcessed >= totalCombinations) {
                     // All combinations processed, display summary
-                    finderResultsLogDiv.innerHTML = combinationResult.log + `<hr><b>Processamento completo.</b> ${combinationPerformance.length} combinações avaliadas.`;
+                    if (finderStatusDisplay) finderStatusDisplay.innerHTML = `<b>Processamento completo.</b> ${combinationPerformance.length} combinações avaliadas.`; // Final status
                     // **** CALL TO this file (ui-controller.js) ****
                     displayCombinationSummary(combinationPerformance);
                     return;
@@ -131,8 +164,10 @@ function initiateProcess(mode) {
 
                 const currentCombo = combinationResult.combinations[combinationsProcessed];
                 const comboString = JSON.stringify(currentCombo);
-                console.log(`\n--- Processing Combination ${combinationsProcessed + 1}/${combinationResult.combinations.length}: [${currentCombo.join(', ')}] ---`);
-                finderResultsLogDiv.innerHTML = combinationResult.log + `<hr>Processando Combinação ${combinationsProcessed + 1}/${combinationResult.combinations.length}: [${currentCombo.join(', ')}]...`;
+                console.log(`\n--- Processing Combination ${combinationsProcessed + 1}/${totalCombinations}: [${currentCombo.join(', ')}] ---`);
+
+                // Update STATUS DISPLAY before processing
+                if (finderStatusDisplay) finderStatusDisplay.innerHTML = `Processando Combinação ${combinationsProcessed + 1}/${totalCombinations}: [${currentCombo.join(', ')}]...`;
 
                 // Set globals for this combination (uses globals from utils.js)
                 globalUserLpdCombinationWithDuplicates = currentCombo;
@@ -140,38 +175,27 @@ function initiateProcess(mode) {
                 globalLpdInstanceCounts = {}; currentCombo.forEach(lpd => { if (typeof lpd === 'number' && !isNaN(lpd)) {globalLpdInstanceCounts[lpd] = (globalLpdInstanceCounts[lpd] || 0) + 1; }});
                 globalInitialTotalSlotsPerValue = {}; globalUniqueLpdValues.forEach(lpd => { const instances = globalLpdInstanceCounts[lpd] || 0; globalInitialTotalSlotsPerValue[lpd] = globalMaxSlotsPerInstance !== Infinity ? (instances * globalMaxSlotsPerInstance) : Infinity; });
 
-
-                // Run allocator phase internally (returns results, doesn't display)
-                // Use setTimeout to avoid blocking UI for too long on each combo
+                // Run allocator phase internally (using setTimeout to prevent blocking)
                 setTimeout(() => {
                      try {
                          // **** CALL TO this file (ui-controller.js) ****
-                        const strategyResultsForCombo = runAllocatorPhaseInternal(); // New internal function
+                        const strategyResultsForCombo = runAllocatorPhaseInternal();
                         globalCombinationStrategyResultsCache[comboString] = strategyResultsForCombo; // Cache the full results
-
-                        // Find the best strategy result *for this combination*
-                        // **** CALL TO this file (ui-controller.js) ****
+                         // **** CALL TO this file (ui-controller.js) ****
                         let bestResultForCombo = findBestResultFromStrategyList(strategyResultsForCombo);
-
-                        combinationPerformance.push({
-                            combination: currentCombo,
-                            bestResult: bestResultForCombo // Store only the summary of the best
-                        });
+                        combinationPerformance.push({ combination: currentCombo, bestResult: bestResultForCombo });
                      } catch (allocError) {
                          console.error(`Error running allocator for combo [${currentCombo.join(', ')}]:`, allocError);
-                          combinationPerformance.push({
-                            combination: currentCombo,
-                            bestResult: { // Placeholder for error
-                                strategyName: "Erro Alocador",
-                                maxVariation: Infinity, avgVariation: Infinity, meetsLimit: false, hasAllocationError: true,
-                                displayMaxVarStr: '<span class="error">Erro</span>', displayAvgVarStr: '<span class="error">Erro</span>', displayOutcomeStr: '<span class="error">Erro</span>', isDuplicateResult: false // Added isDuplicateResult
-                            }
-                        });
+                         combinationPerformance.push({
+                             combination: currentCombo,
+                             bestResult: { // Placeholder for error
+                                strategyName: "Erro Alocador", maxVariation: Infinity, avgVariation: Infinity, meetsLimit: false, hasAllocationError: true,
+                                displayMaxVarStr: '<span class="error">Erro</span>', displayAvgVarStr: '<span class="error">Erro</span>', displayOutcomeStr: '<span class="error">Erro</span>', isDuplicateResult: false
+                             }
+                          });
                      }
-
                     combinationsProcessed++;
                     processNextCombination(); // Process the next one recursively
-
                 }, 5); // Small delay between processing each combination
 
             }
@@ -180,14 +204,30 @@ function initiateProcess(mode) {
 
         } catch (combinationError) {
             console.error(`Erro durante Geração/Processamento da Combinação (Modo: ${mode}):`, combinationError);
-            finderResultsLogDiv.innerHTML += `\n<span class="error">Ocorreu um erro inesperado: ${combinationError.message}</span>`;
-             combinationSummaryTitle.style.display = 'block';
-            combinationSummaryTableDiv.innerHTML = `<span class="error">Erro no processo (Modo: ${mode}). Verifique o console.</span>`;
+            if (finderStatusDisplay) finderStatusDisplay.innerHTML = `<span class="error">Ocorreu um erro inesperado durante o processamento. Verifique o console.</span>`; // Update status
+            if (finderResultsLogDiv) finderResultsLogDiv.innerHTML += `\n<span class="error">Ocorreu um erro inesperado: ${combinationError.message}</span>`; // Add to log
+             if (combinationSummaryTitle) combinationSummaryTitle.style.display = 'block';
+            if (combinationSummaryTableDiv) combinationSummaryTableDiv.innerHTML = `<span class="error">Erro no processo (Modo: ${mode}). Verifique o console.</span>`;
+             // SHOW the toggle button even on error, so the user can see the log
+             if (toggleLogBtn) toggleLogBtn.style.display = 'inline-flex';
+             if (finderResultsLogDiv) finderResultsLogDiv.classList.remove('log-hidden'); // Show log on error
         }
     }, 10); // End setTimeout for Combination Generation
 
 } // Fim initiateProcess
 
+// --- NEW: Toggle Function for Finder Log ---
+function toggleFinderLog() {
+    const logDiv = document.getElementById('finderResultsLog');
+    const button = document.getElementById('toggleLogBtn');
+    // Only toggle if the button is actually visible
+    if (logDiv && button && button.style.display !== 'none') {
+        const isHidden = logDiv.classList.toggle('log-hidden');
+        button.textContent = isHidden ? 'Mostrar Log Detalhado' : 'Ocultar Log Detalhado';
+    } else {
+        console.warn("Cannot toggle finder log: elements not found or process not run yet.");
+    }
+}
 
 // --- NEW: Helper to find the best result within a list of strategy results ---
 // Prioritizes results: Non-error, Meets Limit, Non-duplicate -> Non-error, Non-duplicate -> Non-error -> Non-duplicate -> First result
@@ -215,7 +255,7 @@ function findBestResultFromStrategyList(strategyResults) {
      candidates = strategyResults.filter(r => !r.isDuplicateResult);
      if (candidates.length > 0) return candidates[0];
 
-    // Otherwise, return the first one (which will likely be the best error or duplicate)
+    // Otherwise, return the first one (which will likely be the best error or duplicate based on initial sort)
     return strategyResults[0];
 }
 
@@ -226,8 +266,8 @@ function displayCombinationSummary(combinationPerformance) {
     const summaryTableDiv = document.getElementById('combinationSummaryTableDiv');
 
     if (!combinationPerformance || combinationPerformance.length === 0) {
-        summaryTitle.style.display = 'block';
-        summaryTableDiv.innerHTML = "Nenhuma combinação para exibir.";
+        if (summaryTitle) summaryTitle.style.display = 'block';
+        if (summaryTableDiv) summaryTableDiv.innerHTML = "Nenhuma combinação para exibir.";
         return;
     }
 
@@ -287,8 +327,8 @@ function displayCombinationSummary(combinationPerformance) {
     });
 
     html += `</tbody></table>`;
-    summaryTitle.style.display = 'block'; // Show title
-    summaryTableDiv.innerHTML = html;
+    if (summaryTitle) summaryTitle.style.display = 'block'; // Show title
+    if (summaryTableDiv) summaryTableDiv.innerHTML = html;
 }
 
 // --- NEW: Click Handler for Combination Summary Table Row ---
@@ -312,10 +352,14 @@ function displayResultsForCombination(encodedComboString, clickedRow) {
 
     // --- Retrieve cached results ---
     const cachedResults = globalCombinationStrategyResultsCache[comboString];
+    const statusAreaDiv = document.getElementById('statusArea'); // Get status div early for error reporting
+
     if (!cachedResults) {
         console.error("Error: Cached strategy results not found for combo:", comboString);
-        document.getElementById('statusArea').innerHTML = `<span class="error">Erro interno: Resultados da estratégia em cache não encontrados para esta combinação.</span>`;
-        document.getElementById('statusArea').style.display = 'block';
+        if (statusAreaDiv) {
+             statusAreaDiv.innerHTML = `<span class="error">Erro interno: Resultados da estratégia em cache não encontrados para esta combinação.</span>`;
+             statusAreaDiv.style.display = 'block';
+        }
         // Clear other sections
         document.getElementById('strategyComparison').innerHTML = ''; document.getElementById('strategyComparison').style.display = 'none';
         document.getElementById('allocationResults').innerHTML = ''; document.getElementById('allocationResults').style.display = 'none';
@@ -343,14 +387,15 @@ function displayResultsForCombination(encodedComboString, clickedRow) {
      } catch (e) {
          console.error("Error parsing selected combination string:", comboString, e);
          // Handle error gracefully, maybe show an error message and return
-         document.getElementById('statusArea').innerHTML = `<span class="error">Erro interno ao processar a combinação selecionada.</span>`;
-         document.getElementById('statusArea').style.display = 'block';
+         if (statusAreaDiv) {
+              statusAreaDiv.innerHTML = `<span class="error">Erro interno ao processar a combinação selecionada.</span>`;
+              statusAreaDiv.style.display = 'block';
+         }
          return;
      }
 
 
     // --- Show and Populate Standard Result Sections ---
-    const statusAreaDiv = document.getElementById('statusArea');
     const strategyComparisonDiv = document.getElementById('strategyComparison');
     const detailsTitleH2 = document.getElementById('detailsTitle');
     const allocatorTitleH2 = document.getElementById('allocatorTitle');
@@ -365,18 +410,18 @@ function displayResultsForCombination(encodedComboString, clickedRow) {
 
 
      // Make sections visible
-     allocatorTitleH2.style.display = 'block';
-     statusAreaDiv.style.display = 'block';
-     strategyComparisonDiv.style.display = 'block';
-     detailsSeparatorHr.style.display = 'block';
-     detailsTitleH2.style.display = 'block';
-     allocationResultsDiv.style.display = 'block';
-     adjustmentLogDiv.style.display = 'block';
-     variationLogDiv.style.display = 'block';
-     cumulativeUsageDiv.style.display = 'block';
-     refinementLogDiv.style.display = 'block';
-     lpdBreakdownDiv.style.display = 'block';
-     finalSummaryTableDiv.style.display = 'block';
+     if (allocatorTitleH2) allocatorTitleH2.style.display = 'block';
+     if (statusAreaDiv) statusAreaDiv.style.display = 'block'; // Ensure status is visible
+     if (strategyComparisonDiv) strategyComparisonDiv.style.display = 'block';
+     if (detailsSeparatorHr) detailsSeparatorHr.style.display = 'block';
+     if (detailsTitleH2) detailsTitleH2.style.display = 'block';
+     if (allocationResultsDiv) allocationResultsDiv.style.display = 'block';
+     if (adjustmentLogDiv) adjustmentLogDiv.style.display = 'block';
+     if (variationLogDiv) variationLogDiv.style.display = 'block';
+     if (cumulativeUsageDiv) cumulativeUsageDiv.style.display = 'block';
+     if (refinementLogDiv) refinementLogDiv.style.display = 'block';
+     if (lpdBreakdownDiv) lpdBreakdownDiv.style.display = 'block';
+     if (finalSummaryTableDiv) finalSummaryTableDiv.style.display = 'block';
 
     // --- Generate Strategy Comparison Table (like in original runAllocatorPhase) ---
     let comparisonHTML = `<div class="comparison-title">--- Resumo da Comparação de Estratégias (Combinação: [${globalUserLpdCombinationWithDuplicates.join(', ')}]) ---</div>`;
@@ -411,7 +456,7 @@ function displayResultsForCombination(encodedComboString, clickedRow) {
             comparisonHTML += `<tr class="${rowClass.trim()}"><td class="strategy-name" onclick="displayStrategyDetails('${encodeURIComponent(res.strategyName)}')">${res.strategyName} ${isSelectedStrategy ? '(Padrão)' : ''}</td><td>${maxVarStr}</td><td>${avgVarStr}</td><td>${outcomeStr}</td></tr>`;
         });
     } else {
-        comparisonHTML += '<tr><td colspan="4">Nenhum resultado de estratégia para exibir.</td></tr>';
+        comparisonHTML += '<tr><td colspan="4">Nenhum resultado de estratégia para exibir para esta combinação.</td></tr>';
     }
     comparisonHTML += `</tbody></table></div>`; // Close table and container
 
@@ -421,7 +466,7 @@ function displayResultsForCombination(encodedComboString, clickedRow) {
     if (finalDuplicateCount > 0) { comparisonHTML += `<button id="toggleDuplicatesBtn" onclick="toggleDuplicateStrategies()" class="secondary">Mostrar ${finalDuplicateCount} Estrat. c/ Resultados Idênticos...</button>`; }
     comparisonHTML += `</div>`;
 
-    strategyComparisonDiv.innerHTML = comparisonHTML;
+    if (strategyComparisonDiv) strategyComparisonDiv.innerHTML = comparisonHTML;
 
     // --- Display details of the default best strategy for this combination ---
      // **** CALL TO this file (ui-controller.js) **** - Finds default again
@@ -429,17 +474,19 @@ function displayResultsForCombination(encodedComboString, clickedRow) {
 
     if (defaultStrategyToShow) {
          // Always attempt to display details, even if there's an error, so user can see logs
-        statusAreaDiv.innerHTML = `Exibindo resultados para a combinação: <span class="info">[${globalUserLpdCombinationWithDuplicates.join(', ')}]</span>. Estratégia Padrão: <span class="info">${defaultStrategyToShow.strategyName}</span>${defaultStrategyToShow.hasAllocationError ? ' <span class="error">(Contém Erro)</span>': ''}.`;
+        if (statusAreaDiv) statusAreaDiv.innerHTML = `Exibindo resultados para a combinação: <span class="info">[${globalUserLpdCombinationWithDuplicates.join(', ')}]</span>. Estratégia Padrão: <span class="info">${defaultStrategyToShow.strategyName}</span>${defaultStrategyToShow.hasAllocationError ? ' <span class="error">(Contém Erro)</span>': ''}.`;
         console.log(`Calling displayStrategyDetails for default: ${defaultStrategyToShow.strategyName}`);
         // **** CALL TO this file (ui-controller.js) ****
         displayStrategyDetails(encodeURIComponent(defaultStrategyToShow.strategyName)); // Display its details
     } else {
         // This case should be rare if globalStrategyResults is not empty
-        statusAreaDiv.innerHTML = `<span class="error">Nenhum resultado de estratégia padrão encontrado para a combinação: [${globalUserLpdCombinationWithDuplicates.join(', ')}]</span>`;
+        if (statusAreaDiv) statusAreaDiv.innerHTML = `<span class="error">Nenhum resultado de estratégia padrão encontrado para a combinação: [${globalUserLpdCombinationWithDuplicates.join(', ')}]</span>`;
         // Clear detail sections
-        allocationResultsDiv.innerHTML = 'Nenhum detalhe para exibir.';
-        adjustmentLogDiv.innerHTML = ''; variationLogDiv.innerHTML = ''; cumulativeUsageDiv.innerHTML = ''; lpdBreakdownDiv.innerHTML = ''; finalSummaryTableDiv.innerHTML = ''; refinementLogDiv.innerHTML = '';
-        detailsTitleH2.innerHTML = 'Resultados Detalhados da Alocação';
+        if(allocationResultsDiv) allocationResultsDiv.innerHTML = 'Nenhum detalhe para exibir.';
+        if(adjustmentLogDiv) adjustmentLogDiv.innerHTML = ''; if(variationLogDiv) variationLogDiv.innerHTML = '';
+        if(cumulativeUsageDiv) cumulativeUsageDiv.innerHTML = ''; if(lpdBreakdownDiv) lpdBreakdownDiv.innerHTML = '';
+        if(finalSummaryTableDiv) finalSummaryTableDiv.innerHTML = ''; if(refinementLogDiv) refinementLogDiv.innerHTML = '';
+        if(detailsTitleH2) detailsTitleH2.innerHTML = 'Resultados Detalhados da Alocação';
     }
 }
 
@@ -504,7 +551,7 @@ function runAllocatorPhaseInternal() {
              });
              console.log("[runAllocatorPhaseInternal] Potential differences calculation loop finished.");
          } else { console.error("[runAllocatorPhaseInternal] globalOriginalItems is not a valid array for potential difference calculation."); }
-         console.log("[runAllocatorPhaseInternal] Potential differences map:", potentialDifferences);
+         // console.log("[runAllocatorPhaseInternal] Potential differences map:", potentialDifferences); // Can be verbose
 
     } else {
         console.warn("[runAllocatorPhaseInternal] No LPD combination available for heuristic pre-calculation.");
@@ -534,7 +581,7 @@ function runAllocatorPhaseInternal() {
          { name: "Qtd Asc, Índice Asc (Desempate)", sortFn: (items) => [...items].sort((a, b) => a.amount - b.amount || a.originalIndex - b.originalIndex) },
          { name: "Qtd Asc, Índice Desc (Desempate)", sortFn: (items) => [...items].sort((a, b) => a.amount - b.amount || b.originalIndex - a.originalIndex) },
          { name: "Qtd Desc, Índice Asc (Desempate)", sortFn: (items) => [...items].sort((a, b) => b.amount - a.amount || a.originalIndex - b.originalIndex) },
-         { name: "Qtd Desc, Índice Desc (Desempate)", sortFn: (items) => [...items].sort((a, b) => b.amount - a.amount || b.originalIndex - a.originalIndex) }, // Corrected originalIndex tie-breaker
+         { name: "Qtd Desc, Índice Desc (Desempate)", sortFn: (items) => [...items].sort((a, b) => b.amount - a.amount || b.originalIndex - a.originalIndex) },
          { name: "Quantidade por Último Dígito", sortFn: (items) => [...items].sort((a, b) => (a.amount % 10) - (b.amount % 10) || a.amount - b.amount) },
          { name: "Quantidade por Primeiro Dígito", sortFn: (items) => { const fd = (n) => {n=Math.abs(n); if(n===0) return 0; while(n>=10) n=Math.floor(n/10); return n;}; return [...items].sort((a, b) => fd(a.amount) - fd(b.amount) || a.amount - b.amount); }},
          { name: "Qtd Asc (Processa Terços P->G->M)", sortFn: (items) => { const s = [...items].sort((a,b)=>a.amount-b.amount), n=s.length, t=Math.ceil(n/3); return [...s.slice(0,t), ...s.slice(n-t), ...s.slice(t,n-t)]; }},
@@ -578,7 +625,7 @@ function runAllocatorPhaseInternal() {
     // --- Step 1: Run strategies ---
     for (let i = 0; i < strategies.length; i++) {
         const strategy = strategies[i];
-        console.log(`[runAllocatorPhaseInternal] Running Strategy [${i+1}/${strategies.length}] ${strategy.name}`);
+        // console.log(`[runAllocatorPhaseInternal] Running Strategy [${i+1}/${strategies.length}] ${strategy.name}`); // Can be verbose
         let currentItemsOrdered;
         try {
              // Ensure items are deeply cloned and index added
@@ -676,7 +723,10 @@ function runAllocatorPhaseInternal() {
 
     // --- Step 2: Apply Refinement to the potentially best result *within this run* ---
     // Find the preliminary best result to refine for *this* combination's run
+    // **** CALL TO this file (ui-controller.js) ****
     let preliminaryBestResult = findBestResultFromStrategyList(localStrategyResults); // Use helper
+
+    let refinementLogContent = "Nenhum refinamento aplicado."; // Default log content for this run
 
     if (preliminaryBestResult && !preliminaryBestResult.hasAllocationError) {
         console.log(`[runAllocatorPhaseInternal] Applying refinement to preliminary best: ${preliminaryBestResult.strategyName}`);
@@ -691,17 +741,33 @@ function runAllocatorPhaseInternal() {
                 if (indexToUpdate !== -1) {
                     // Update the entry in localStrategyResults with the refined one
                     localStrategyResults[indexToUpdate] = refinementOutcome.refinedResultEntry;
-                    console.log(`[runAllocatorPhaseInternal] Updated local results with refined data for index ${indexToUpdate}. Refinement log stored if needed:`, refinementOutcome.log.substring(0, 100) + "...");
-                    // Optionally store refinementOutcome.log with the resultEntry if needed later
-                     // localStrategyResults[indexToUpdate].refinementLog = refinementOutcome.log;
-                } else { console.error(`[runAllocatorPhaseInternal] Could not find strategy ${preliminaryBestResult.strategyName} to update after refinement!`); }
-            } else { console.error(`[runAllocatorPhaseInternal] Refinement function returned invalid outcome.`); }
-        } catch (refinementError) { console.error(`[runAllocatorPhaseInternal] Error during refinement call:`, refinementError); }
+                     // Store the refinement log with the result entry
+                     localStrategyResults[indexToUpdate].refinementLog = refinementOutcome.log;
+                     refinementLogContent = refinementOutcome.log; // Capture log for console
+                    console.log(`[runAllocatorPhaseInternal] Updated local results with refined data for index ${indexToUpdate}.`);
+                } else {
+                    console.error(`[runAllocatorPhaseInternal] Could not find strategy ${preliminaryBestResult.strategyName} to update after refinement!`);
+                    refinementLogContent = "<span class='error'>Erro: Falha ao atualizar estratégia pós-refinamento.</span>";
+                }
+            } else {
+                 console.error(`[runAllocatorPhaseInternal] Refinement function returned invalid outcome.`);
+                 refinementLogContent = "<span class='error'>Erro: Função de refinamento falhou.</span>";
+            }
+        } catch (refinementError) {
+             console.error(`[runAllocatorPhaseInternal] Error during refinement call:`, refinementError);
+             refinementLogContent = `<span class='error'>Erro durante refinamento: ${refinementError.message}</span>`;
+        }
     } else if (preliminaryBestResult) {
          console.log(`[runAllocatorPhaseInternal] Skipping refinement for preliminary best (${preliminaryBestResult.strategyName}) due to initial error.`);
+         refinementLogContent = `Refinamento não aplicado (estratégia ${preliminaryBestResult.strategyName} com erro inicial).`;
+         // Attach log to the result entry anyway
+         const indexToUpdate = localStrategyResults.findIndex(r => r.strategyName === preliminaryBestResult.strategyName);
+         if (indexToUpdate !== -1) { localStrategyResults[indexToUpdate].refinementLog = refinementLogContent; }
+
     } else {
         console.log(`[runAllocatorPhaseInternal] Skipping refinement (no preliminary result found).`);
     }
+    console.log(`[runAllocatorPhaseInternal] Refinement outcome log snippet: ${refinementLogContent.substring(0, 150)}...`);
     // --- End Refinement ---
 
 
@@ -744,11 +810,13 @@ function runAllocatorPhaseInternal() {
                  if (res.maxVariation === Infinity) { res.displayMaxVarStr = '<span class="violation">Infinita</span>'; }
                  else {
                       res.displayMaxVarStr = (res.maxVariation * 100).toFixed(1) + '%';
-                      if (!res.meetsLimit) {
+                      // Check against limits AFTER calculating the string
+                      if (!res.meetsLimit) { // meetsLimit is also calculated/updated after refinement
                            res.displayMaxVarStr = `<span class="${res.maxVariation > REPROCESS_VARIATION_LIMIT ? 'violation' : 'warning'}">${res.displayMaxVarStr}</span>`;
                       }
                  }
                  res.displayAvgVarStr = (res.avgVariation * 100).toFixed(1) + '%';
+                 // Determine outcome based on meetsLimit (calculated/updated post-refinement)
                  if (res.meetsLimit) { res.displayOutcomeStr = `<span class="success">Sucesso</span>`; }
                  else { res.displayOutcomeStr = `<span class="warning">Var Alta</span>`; }
              }
@@ -810,9 +878,13 @@ function displayStrategyDetails(encodedStrategyName) {
 
 
      // Reset UI elements for detail view
-     allocationResultsDiv.innerHTML = 'Carregando detalhes...';
-     adjustmentLogDiv.innerHTML = ''; variationLogDiv.innerHTML = ''; cumulativeUsageDiv.innerHTML = '';
-     lpdBreakdownDiv.innerHTML = ''; finalSummaryTableDiv.innerHTML = ''; refinementLogDiv.innerHTML = ''; // Clear refinement log too
+     if(allocationResultsDiv) allocationResultsDiv.innerHTML = 'Carregando detalhes...'; else console.warn("allocationResultsDiv not found");
+     if(adjustmentLogDiv) adjustmentLogDiv.innerHTML = ''; else console.warn("adjustmentLogDiv not found");
+     if(variationLogDiv) variationLogDiv.innerHTML = ''; else console.warn("variationLogDiv not found");
+     if(cumulativeUsageDiv) cumulativeUsageDiv.innerHTML = ''; else console.warn("cumulativeUsageDiv not found");
+     if(lpdBreakdownDiv) lpdBreakdownDiv.innerHTML = ''; else console.warn("lpdBreakdownDiv not found");
+     if(finalSummaryTableDiv) finalSummaryTableDiv.innerHTML = ''; else console.warn("finalSummaryTableDiv not found");
+     if(refinementLogDiv) refinementLogDiv.innerHTML = ''; else console.warn("refinementLogDiv not found"); // Clear refinement log too
 
      // Validate if result data exists
      if (!selectedResult) {
@@ -834,8 +906,8 @@ function displayStrategyDetails(encodedStrategyName) {
          // Try to display logs even if main data is missing
          if(adjustmentLogDiv) adjustmentLogDiv.innerHTML = (selectedResult.resultData?.logs?.adjustment) || "Nenhum registro de ajuste.";
          if(variationLogDiv) variationLogDiv.innerHTML = (selectedResult.resultData?.logs?.variation) || "Nenhum registro de variação.";
-         // Display refinement log if available
-         if(refinementLogDiv) refinementLogDiv.innerHTML = selectedResult.refinementLog || "Nenhum registro de refinamento disponível."; // Assuming refinement log is stored here
+         // Display refinement log if available (check if attached to selectedResult)
+         if(refinementLogDiv) refinementLogDiv.innerHTML = selectedResult.refinementLog || "Nenhum registro de refinamento disponível.";
          console.error(`[displayStrategyDetails] Incomplete resultData for ${strategyName}. Displaying logs if possible.`);
          // Still try to highlight the selected row in the comparison table
          try { updateComparisonTableHighlight(strategyName); } catch(e) { console.error("Error calling updateHighlight on incomplete data:", e); }
@@ -845,8 +917,6 @@ function displayStrategyDetails(encodedStrategyName) {
      console.log(`[displayStrategyDetails] Starting detailed display for ${strategyName}.`);
      try {
          // Update titles
-         // Status area was updated by displayResultsForCombination, can add strategy name here if needed
-         // if(statusAreaDiv) statusAreaDiv.innerHTML += ` | Detalhes: ${strategyName}`;
          if(detailsTitle) detailsTitle.innerHTML = `Resultados Detalhados da Alocação (Estratégia: ${strategyName})`;
 
          // Destructure necessary data (using globals from utils.js where needed, these are set by displayResultsForCombination)
@@ -984,7 +1054,8 @@ function displayStrategyDetails(encodedStrategyName) {
                          totalGlobalSheets += instance.planValue;
                      }
                  } else {
-                      console.log(`[displayStrategyDetails] Skipping empty plan instance: LPD ${instance.planValue}, Instance #${instance.instanceNum}`);
+                      // Optionally log skipped instances
+                      // console.log(`[displayStrategyDetails] Skipping empty plan instance: LPD ${instance.planValue}, Instance #${instance.instanceNum}`);
                  }
              });
              if (overallPlanIndex === 0) {
@@ -1144,7 +1215,7 @@ function updateComparisonTableHighlight(selectedStrategyName) {
     const tbody = table.getElementsByTagName('tbody')[0];
     if (!tbody) { console.warn("updateComparisonTableHighlight: tbody not found in comparisonTable."); return; }
     const rows = tbody.getElementsByTagName('tr');
-    console.log(`[updateComparisonTableHighlight] Highlighting: ${selectedStrategyName}. Found ${rows.length} rows.`);
+    // console.log(`[updateComparisonTableHighlight] Highlighting: ${selectedStrategyName}. Found ${rows.length} rows.`); // Verbose
 
     for (let row of rows) {
         row.classList.remove('best-effort'); // Remove from all rows first
@@ -1153,7 +1224,7 @@ function updateComparisonTableHighlight(selectedStrategyName) {
             // Get current name, removing any existing "(Padrão)" marker
             let currentStrategyName = firstCell.textContent.replace(/\s*\((Padrão|Selecionado)\)$/, '').trim();
             if (currentStrategyName === selectedStrategyName) {
-                console.log(`[updateComparisonTableHighlight] Applying highlight to row for: ${currentStrategyName}`);
+                // console.log(`[updateComparisonTableHighlight] Applying highlight to row for: ${currentStrategyName}`); // Verbose
                 row.classList.add('best-effort'); // Add class to the selected row
                 firstCell.textContent = `${currentStrategyName} (Padrão)`; // Add marker
             } else {
@@ -1163,7 +1234,7 @@ function updateComparisonTableHighlight(selectedStrategyName) {
             console.warn("[updateComparisonTableHighlight] Row doesn't have a first cell:", row);
         }
     }
-    console.log(`[updateComparisonTableHighlight] Finished highlighting for: ${selectedStrategyName}`);
+    // console.log(`[updateComparisonTableHighlight] Finished highlighting for: ${selectedStrategyName}`); // Verbose
 }
 
 
@@ -1203,7 +1274,7 @@ function updateItemCountDisplay() {
     const textarea = document.getElementById('tableData');
     const displayElement = document.getElementById('itemCountDisplay');
     if (!textarea || !displayElement) {
-        console.warn("Could not find textarea or display element for item count.");
+        // console.warn("Could not find textarea or display element for item count."); // Can be noisy
         return 0; // Return 0 if elements not found
     }
 
@@ -1224,7 +1295,7 @@ function checkCombinationSizeWarning() {
     const textarea = document.getElementById('tableData'); // Need this to get item count
 
     if (!maxSlotsInput || !combinationSizeInput || !container || !icon || !textarea) {
-        console.warn("Missing elements for combination size warning check.");
+        // console.warn("Missing elements for combination size warning check."); // Can be noisy
         return;
     }
 

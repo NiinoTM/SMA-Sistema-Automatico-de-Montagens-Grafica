@@ -53,25 +53,28 @@ Especificação C	20000
         <span class="warning-icon" style="color: var(--danger); font-weight: bold; cursor: help;" title="A capacidade total (Imagens * Planos) é menor que o Total de Imagens requisitadas.">⚠️</span>
     </div>
 
-    <!-- Botões de Ação -->
-    <button onclick="initiateProcess('findBest')" class="primary-action">Otimizar por Frequência de Divisores</button>
-    <button onclick="initiateProcess('forceProportional')" class="secondary">Aplicar Distribuição Proporcional</button>
+    <!-- Botões de Ação in a container -->
+    <div class="action-buttons-container">
+        <button onclick="initiateProcess('findBest')" class="primary-action">Otimizar por Frequência de Divisores</button>
+        <button onclick="initiateProcess('forceProportional')" class="secondary">Aplicar Distribuição Proporcional</button>
+        <button id="toggleLogBtn" onclick="toggleFinderLog()" class="secondary" style="font-size: 0.8rem; padding: 0.3rem 0.6rem; display: none;">Mostrar Log Detalhado</button>
+    </div>
 
     <!-- Áreas de Saída -->
-
-    <!-- Seção para Resultados da Combinação FINDER -->
     <hr>
     <h2 id="finderTitle" class="output-section">Resultados da Geração de Combinação</h2>
-    <div id="finderResultsLog" class="output-section">O registro da geração da combinação aparecerá aqui...</div>
-    <!-- Removed or repurposed: <div id="foundCombinationDisplay" class="output-section">...</div> -->
 
-    <!-- NEW: Seção para Resumo das Combinações Testadas -->
+    <!-- Status Display (Always Visible) -->
+    <div id="finderStatusDisplay" class="output-section status-display">Aguardando início do processo...</div>
+
+    <!-- Detailed Log (Initially Hidden) -->
+    <div id="finderResultsLog" class="output-section log-hidden">O registro detalhado da geração da combinação aparecerá aqui...</div>
+
     <hr>
     <h2 id="combinationSummaryTitle" class="output-section" style="display: none;">Resumo das Combinações Testadas</h2>
     <div id="combinationSummaryTableDiv" class="output-section">O resumo do desempenho de cada combinação aparecerá aqui...</div>
 
 
-    <!-- Seção para Resultados do Alocador (Now appears AFTER combination selection) -->
     <hr>
     <!-- Added style="display: none;" to hide initially -->
     <h2 id="allocatorTitle" class="output-section" style="display: none;">Resultados do Alocador (para Combinação Selecionada)</h2>

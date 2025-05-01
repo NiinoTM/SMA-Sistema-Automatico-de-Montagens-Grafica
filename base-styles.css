@@ -151,8 +151,9 @@ button {
     cursor: pointer;
     transition: var(--transition);
     box-shadow: var(--shadow-sm);
-    margin-right: 0.5rem;
-    margin-bottom: 0.5rem;
+    /* Removed default margins, handled by container gap */
+    /* margin-right: 0.5rem; */
+    /* margin-bottom: 0.5rem; */
 }
 
 button:hover {
@@ -179,6 +180,31 @@ button.secondary {
 button.secondary:hover {
     background-color: var(--secondary-dark);
 }
+
+/* --- In base-styles.css --- */
+
+/* Container for Action Buttons */
+.action-buttons-container {
+    margin-top: 1rem; /* Space above the button group */
+    display: flex; /* Use flexbox for alignment */
+    flex-wrap: wrap; /* Allow buttons to wrap on smaller screens */
+    align-items: center; /* Vertically align buttons if they wrap */
+    gap: 0.75rem; /* Spacing between buttons */
+    margin-bottom: 1rem; /* Add some space below the button row */
+}
+
+/* Adjust default button margins if using gap */
+.action-buttons-container button {
+    margin-right: 0;
+    margin-bottom: 0;
+}
+
+/* NEW: Push the toggle button to the right */
+.action-buttons-container #toggleLogBtn {
+    margin-left: auto; /* Pushes this button to the far right */
+}
+
+/* --- End of added/modified styles --- */
 
 /* Sidebar */
 #sidebar {
@@ -256,7 +282,15 @@ button.secondary:hover {
 }
 
 /* Specific border colors for sections */
-#finderResultsLog { border-left-color: var(--secondary); white-space: pre-wrap; } /* Make log respect newlines */
+#finderResultsLog {
+    border-left-color: var(--secondary);
+    white-space: pre-wrap; /* Make log respect newlines */
+    max-height: 400px; /* Add max height for scroll when visible */
+    overflow-y: auto; /* Enable vertical scroll */
+    margin-top: 0; /* Remove top margin as button is part of action group now */
+    border-top-left-radius: 0; /* Flatten top to connect with status */
+    border-top-right-radius: 0;
+}
 #combinationSummaryTableDiv { border-left-color: var(--primary); padding-top: 0.25rem; padding-bottom: 0.25rem; } /* Reduce padding for table container */
 #statusArea { border-left-color: var(--secondary); }
 #strategyComparison { border-left-color: var(--secondary); padding-top: 0.25rem; padding-bottom: 0.25rem; } /* Reduce padding for table container */
@@ -274,6 +308,21 @@ button.secondary:hover {
 }
 #finalSummaryTableDiv { border-left-color: var(--primary); padding-top: 0.25rem; padding-bottom: 0.25rem; } /* Reduce padding for table container */
 
+/* Style for the always-visible status display */
+#finderStatusDisplay {
+    border-left-color: var(--secondary);
+    font-weight: 500; /* Make status slightly bolder */
+    background-color: var(--bg-tertiary); /* Slightly different background */
+    padding: 0.5rem 1rem; /* Adjust padding */
+    margin-bottom: 0; /* No space between status and potentially visible log */
+    border-bottom-left-radius: 0; /* Flatten bottom edge connecting to log */
+    border-bottom-right-radius: 0;
+}
+
+/* Class to hide the detailed log */
+.log-hidden {
+    display: none;
+}
 
 /* Style for log entries within output sections */
 .output-section div { /* Basic spacing for divs inside logs */
@@ -406,11 +455,12 @@ hr {
 }
 
 /* Hover effect */
-#combinationSummaryTable tr:hover,
-#comparisonTable tr:hover,
-#finalSummaryTable tr:hover {
-    background-color: rgba(59, 130, 246, 0.08); /* Slightly stronger blue on hover */
+#combinationSummaryTable tbody tr:hover, /* Apply hover only to tbody rows */
+#comparisonTable tbody tr:hover,
+#finalSummaryTable tbody tr:hover {
+    background-color: rgba(59, 130, 246, 0.08) !important; /* Slightly stronger blue on hover, use !important to override even rows */
 }
+
 
 /* Footer style for Final Summary Table */
 #finalSummaryTable tfoot th, #finalSummaryTable tfoot td {
@@ -466,7 +516,7 @@ hr {
     font-weight: 500;
 }
 #combinationSummaryTable tbody tr.selected-combination td {
-     color: var(--text-primary); /* Ensure text is bright when selected */
+     color: var(--text-primary) !important; /* Ensure text is bright when selected */
 }
 
 
