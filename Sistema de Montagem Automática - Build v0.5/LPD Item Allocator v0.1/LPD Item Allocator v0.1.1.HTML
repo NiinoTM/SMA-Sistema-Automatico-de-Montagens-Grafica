@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LPD Item Allocator (Cumulative Slots)</title>
+    <style>
+         /* Basic styling */
+         body { font-family: sans-serif; padding: 20px; }
+        label { display: block; margin-top: 10px; margin-bottom: 5px; font-weight: bold; }
+        textarea { width: 90%; min-height: 150px; margin-bottom: 10px; font-family: monospace; }
+        input[type="number"], input[type="text"] { padding: 8px; margin-bottom: 10px; width: 300px; }
+        button { padding: 10px 15px; cursor: pointer; background-color: #28a745; color: white; border: none; border-radius: 4px; margin-top: 10px; }
+        button:hover { background-color: #218838; }
+        #allocationResults, #cumulativeUsage { margin-top: 20px; padding: 15px; border: 1px solid #ccc; background-color: #f9f9f9; white-space: pre-wrap; font-family: monospace; }
+        .error { color: red; font-weight: bold; }
+        .info { color: blue; }
+        .input-group { margin-bottom: 15px; }
+        .highlight { background-color: #cff4fc; font-weight: bold; border: 1px solid #9eeaf9;}
+        .item-allocation { border-top: 1px dashed #aaa; margin-top: 10px; padding-top: 10px;}
+        .usage-summary { margin-top: 15px; font-weight: bold; }
+
+    </style>
+</head>
+<body>
+
+    <h1>LPD Item Allocator (with Cumulative Slot Limit)</h1>
+    <p>Allocates each item amount using the provided LPDs, ensuring the TOTAL usage of each LPD across all items does not exceed the Max Slots limit.</p>
+
+    <!-- Input fields -->
+    <div class="input-group">
+        <label for="tableData">Table Data (Details + Amount, one per line):</label>
+        <textarea id="tableData" placeholder="Example:
+Chimichurri	70000
+Louro Folhas	40000
+..."></textarea>
+    </div>
+     <div class="input-group">
+        <label for="lpdCombinationInput">LPD Combination (e.g., [3000, 7500, 10000, 16000]):</label>
+        <input type="text" id="lpdCombinationInput" placeholder="[3000, 7500, 10000, 16000]">
+    </div>
+    <div class="input-group">
+        <label for="maxSlots">Max Slots per LPD (Cumulative):</label>
+        <input type="number" id="maxSlots" placeholder="e.g., 3 (blank=unlimited)" min="1" style="width: 120px;">
+    </div>
+
+    <button onclick="allocateAllItems()">Allocate Items</button>
+
+    <!-- Output area -->
+    <div id="allocationResults">Item Allocation results will appear here...</div>
+    <div id="cumulativeUsage">Cumulative LPD usage will appear here...</div>
+
+
+    <script>
+        // --- CONFIGURATION RULE ---
+        const MIN_LPD_VALUE_ALLOC = 0; // Not strictly needed here, handled in DP
+
+        // --- Find Closest Sum (Allocation DP) ---
+        // *** MODIFIED to accept remainingSlotsMap instead of maxSlotsPerLpd ***
+        // Purpose: Finds combination closest to target using LPDs, respecting CURRENT remaining slots.
+        function findClosestSumWithRepetitionAndSlots(lpdArray, target, remainingSlotsMap) {
+             // Input checks
+             if (!lpdArray || lpdArray.length === 0) { return { sum: 0, difference: Math.abs(target), combination: [], error: "No LPDs provided for allocation" }; }
+             if (target < 0) { return { sum: 0, difference: Math.abs(target), combination: [], error: "Target amount cannot be negative" }; }
+
+             // Prepare LPDs: Unique, sorted, and positive
+             // Ensure only LPDs present in the remainingSlotsMap are considered (though lpdArray should already match)
+             lpdArray = [...new Set(lpdArray)].filter(lpd => lpd > 0 && remainingSlotsMap.hasOwnProperty(lpd)).sort((a, b) => a - b);
+             if (lpdArray.length === 0) { return { sum: 0, difference: Math.abs(target), combination: [], error: "LPD list empty or no LPDs have remaining slots" }; }
+
+             // DP setup
+             const smallestLpd = lpdArray[0];
+             // Adjust maxSum slightly - if target is 0, need size 1. Add smallestLpd for buffer.
+             const maxSum = Math.max(target, 0) + smallestLpd;
+             const dp = new Array(maxSum + 1).fill(null);
+             dp[0] = { count: 0, usage: {}, lastLpd: null };
+
+             // Build DP table iteratively
+             for (let i = 1; i <= maxSum; i++) {
+                 let bestStateForI = null;
+                 for (const lpd of lpdArray) {
+                     const prevSum = i - lpd;
+                     if (prevSum >= 0 && dp[prevSum] !== null) {
+                         const prevState = dp[prevSum];
+                         const currentLpdUsageInThisPath = (prevState.usage[lpd] || 0) + 1;
+
+                         // *** Use remainingSlotsMap for constraint check ***
+                         const slotsAvailable = remainingSlotsMap[lpd]; // Will be a number or Infinity
+                         if (currentLpdUsageInThisPath <= slotsAvailable) { // Check against available slots for *this* LPD
+                             const newTotalCount = prevState.count + 1;
+                             if (bestStateForI === null || newTotalCount < bestStateForI.count) {
+                                 const newUsage = { ...prevState.usage, [lpd]: currentLpdUsageInThisPath };
+                                 bestStateForI = { count: newTotalCount, usage: newUsage, lastLpd: lpd };
+                             }
+                         }
+                     }
+                 }
+                 dp[i] = bestStateForI;
+             }
+
+             // Find the sum closest to the target
+             // ... (Logic unchanged from v0.1.15) ...
+              let minDiff = Infinity; let closestSum = -1; let bestReachableState = null;
+             for (let i = target; i >= 0; i--) { if (dp[i] !== null) { const diff = target - i; if (diff < minDiff || (diff === minDiff && dp[i].count < bestReachableState.count)) { minDiff = diff; closestSum = i; bestReachableState = dp[i]; } if (diff > minDiff && closestSum !== -1) break; } }
+             for (let i = target + 1; i <= maxSum; i++) { if (dp[i] !== null) { const diff = i - target; if (diff < minDiff || (diff === minDiff && dp[i].count < bestReachableState.count)) { minDiff = diff; closestSum = i; bestReachableState = dp[i]; } if (diff >= minDiff && closestSum !== -1) break; } }
+             if (closestSum === -1) { if (target === 0 && dp[0] !== null) { closestSum = 0; minDiff = 0; bestReachableState = dp[0]; } else { closestSum = 0; minDiff = Math.abs(target - 0); bestReachableState = dp[0] || { count: 0, usage: {}, lastLpd: null }; } }
+
+
+             // Reconstruct the combination
+             // ... (Logic unchanged from v0.1.15, BUT needs careful check for slot limit violation during reconstruction) ...
+             const combination = []; let currentSum = closestSum; let currentState = bestReachableState; let safetyCounter = 0; const maxLoops = (currentState?.count || 0) + lpdArray.length + 100;
+             while (currentSum > 0 && currentState?.lastLpd && safetyCounter < maxLoops) {
+                 const usedLpd = currentState.lastLpd; combination.push(usedLpd); const prevSum = currentSum - usedLpd;
+                 if (prevSum >= 0 && dp[prevSum] !== null) { currentState = dp[prevSum]; currentSum = prevSum; }
+                 else { return { sum: closestSum, difference: minDiff, combination: combination.sort((a,b)=>a-b), error: `Backtracking state missing for ${prevSum}` }; }
+                 safetyCounter++;
+             }
+             // Final checks
+             if (safetyCounter >= maxLoops) { return { sum: closestSum, difference: minDiff, combination: combination.sort((a,b)=>a-b), error: "Backtracking limit" }; }
+             if (currentSum !== 0 && closestSum !== 0) { return { sum: closestSum, difference: minDiff, combination: combination.sort((a,b)=>a-b), error: `Backtracking incomplete (final sum ${currentSum})` }; }
+             const reconstructedSum = combination.reduce((a, b) => a + b, 0);
+             if (reconstructedSum !== closestSum) { return { sum: closestSum, difference: minDiff, combination: combination.sort((a,b)=>a-b), error: `Reconstruction mismatch (${reconstructedSum} != ${closestSum})` }; }
+
+             // *** Double-check slot usage for the *returned combination* against remainingSlotsMap ***
+             // This is a safety check, the DP logic should prevent this.
+             const finalUsageCheck = {};
+             for(const lpd of combination) {
+                 finalUsageCheck[lpd] = (finalUsageCheck[lpd] || 0) + 1;
+                 if (finalUsageCheck[lpd] > remainingSlotsMap[lpd]) {
+                     console.error(`Internal Error: Slot limit violated during RECONSTRUCTION for LPD ${lpd}. Used ${finalUsageCheck[lpd]}, only ${remainingSlotsMap[lpd]} remained.`);
+                     // Decide how to handle: return error or partial? Let's return error.
+                     return { sum: closestSum, difference: minDiff, combination: combination.sort((a,b)=>a-b), error: `Slot limit violated for LPD ${lpd} during reconstruction` };
+                 }
+             }
+
+             return { sum: closestSum, difference: minDiff, combination: combination.sort((a,b)=>a-b) };
+        }
+
+
+        // --- Main Processing Function for Allocator ---
+        function allocateAllItems() {
+            // 1. Read and Validate Inputs
+            const tableDataInput = document.getElementById('tableData').value.trim();
+            const lpdCombinationInput = document.getElementById('lpdCombinationInput').value.trim();
+            const maxSlotsInput = document.getElementById('maxSlots').value;
+            const allocationResultsDiv = document.getElementById('allocationResults');
+            const cumulativeUsageDiv = document.getElementById('cumulativeUsage'); // Get usage div
+
+            allocationResultsDiv.innerHTML = `Processing item allocations...`;
+            cumulativeUsageDiv.innerHTML = ''; // Clear previous usage
+
+            if (!tableDataInput) { allocationResultsDiv.innerHTML = '<span class="error">Error: Table data cannot be empty.</span>'; return; }
+            if (!lpdCombinationInput) { allocationResultsDiv.innerHTML = '<span class="error">Error: LPD Combination input cannot be empty.</span>'; return; }
+
+            let maxSlots = Infinity; // Default
+            let maxSlotsIsFinite = false;
+            if (maxSlotsInput) {
+                maxSlots = parseInt(maxSlotsInput);
+                if (isNaN(maxSlots) || maxSlots < 1) { allocationResultsDiv.innerHTML = '<span class="error">Error: Invalid Max Slots per LPD.</span>'; return; }
+                maxSlotsIsFinite = true; // Track if we have a finite limit
+            }
+            const maxSlotsDisplay = maxSlotsIsFinite ? maxSlots : "Unlimited"; // Text for display
+
+            // 2. Parse User-Provided LPD Combination
+            let userLpdCombination;
+            try { /* ... parsing logic same as v0.1.16 ... */
+                 userLpdCombination = JSON.parse(lpdCombinationInput.replace(/\s/g, ''));
+                if (!Array.isArray(userLpdCombination)) { throw new Error("Input is not an array."); }
+                 if (!userLpdCombination.every(item => typeof item === 'number' && item > 0)) { throw new Error("Array must contain only positive numbers."); }
+                 if (userLpdCombination.length === 0) { throw new Error("LPD Combination cannot be empty."); }
+                 userLpdCombination = [...new Set(userLpdCombination)]; // Use unique LPDs
+            } catch (e) {
+                allocationResultsDiv.innerHTML = `<span class="error">Error parsing LPD Combination input. Use JSON array format like [3000, 7500]. Details: ${e.message}</span>`;
+                return;
+            }
+
+            // 3. Parse Table Data
+            const lines = tableDataInput.split('\n');
+            const originalItems = [];
+            let parseErrors = [];
+            lines.forEach((line, index) => { /* ... parsing logic same as v0.1.16 ... */
+                line = line.trim(); if (!line) return;
+                let parts = line.split('\t'); let details = '';
+                if (parts.length < 2) { parts = line.split(/\s+/); }
+                if (parts.length < 2) { parseErrors.push(`L${index + 1}: Cannot split: "${line}"`); return; }
+                const amountStr = parts[parts.length - 1]; details = parts.slice(0, -1).join(parts.length > 2 ? ' ' : '');
+                const amount = parseInt(amountStr);
+                if (isNaN(amount)) { parseErrors.push(`L${index + 1}: Amount NaN "${amountStr}" for "${details}"`); return; }
+                if (amount < 0) { parseErrors.push(`L${index + 1}: Amount cannot be negative "${amount}" for "${details}"`); return; }
+                originalItems.push({ details: details, amount: amount });
+            });
+            if (parseErrors.length > 0) { allocationResultsDiv.innerHTML = `<span class="error">Table Data Parse Errors:</span>\n${parseErrors.join('\n')}`; return; }
+            if (originalItems.length === 0) { allocationResultsDiv.innerHTML = `<span class="error">Error: No items parsed successfully.</span>`; return; }
+
+            // 4. Initialize Remaining Slots & Cumulative Usage Tracking
+            const remainingSlots = {};
+            const cumulativeUsage = {}; // For final display
+            userLpdCombination.forEach(lpd => {
+                 remainingSlots[lpd] = maxSlots; // Can be Infinity
+                 cumulativeUsage[lpd] = 0;       // Start usage at 0
+            });
+
+            // 5. Allocate Each Original Item using the User's LPDs & Tracking Slots
+            let allocationResultsHTML = `--- Item Allocations (using LPDs: [${userLpdCombination.join(', ')}], Max Slots: ${maxSlotsDisplay}) ---`;
+            let allocationWarnings = []; // Store warnings if slots run out
+
+            originalItems.forEach((item, index) => {
+                 allocationResultsHTML += `<div class="item-allocation">`;
+                 allocationResultsHTML += `<b>${index+1}. ${item.details}</b> (Target Amount: ${item.amount})\n`;
+                 // Optional: Log remaining slots before allocation for debugging
+                 // allocationResultsHTML += `   (Slots Before: ${JSON.stringify(remainingSlots)})\n`;
+
+                 // Call the allocation function with the CURRENT remaining slots
+                 const allocation = findClosestSumWithRepetitionAndSlots(userLpdCombination, item.amount, remainingSlots);
+
+                 // Format allocation result
+                 if (allocation.error) {
+                      allocationResultsHTML += `<span class="error">Allocation Error: ${allocation.error}</span>\n`;
+                      // Don't update slots if there was an error during allocation finding/reconstruction
+                 } else if (allocation.sum !== undefined) {
+                      allocationResultsHTML += `<span class="highlight">Closest Achievable Sum: ${allocation.sum}</span>\n`;
+                      allocationResultsHTML += `(Difference from Target Amount: ${allocation.difference})\n`;
+                      if (allocation.combination.length > 0) {
+                          allocationResultsHTML += `Achieved with combination (${allocation.combination.length} items): [${allocation.combination.join(', ')}]`;
+                          const usageCounts = {};
+                          allocation.combination.forEach(l => usageCounts[l] = (usageCounts[l] || 0) + 1);
+                          allocationResultsHTML += `\nUsage Counts: { ${Object.entries(usageCounts).map(([lpd, count]) => `"${lpd}": ${count}`).join(', ')} }`;
+
+                          // *** Update remaining slots and cumulative usage ***
+                           let possibleSlotIssue = false;
+                           for(const lpd of allocation.combination) {
+                               if (remainingSlots[lpd] !== Infinity) {
+                                   if (remainingSlots[lpd] > 0) {
+                                       remainingSlots[lpd]--;
+                                   } else {
+                                       // This case *shouldn't* happen if the DP check works, but log if it does.
+                                       console.error(`Error: Tried to use LPD ${lpd} for item "${item.details}" but remaining slots were 0.`);
+                                       possibleSlotIssue = true; // Flag potential issue
+                                   }
+                               }
+                               cumulativeUsage[lpd]++; // Increment total usage
+                           }
+                           if(possibleSlotIssue) {
+                               allocationResultsHTML += `\n<span class="error">Note: Potential slot limit issue encountered during update (check console).</span>`;
+                           }
+                      } else {
+                           allocationResultsHTML += `(Achieved sum of ${allocation.sum} requires no LPDs)`;
+                           // No slots to update
+                      }
+                       // Add warning if the difference is large, possibly due to slot limits
+                       if (allocation.difference > 0 && maxSlotsIsFinite) {
+                           const potentialWarning = `   Note: Difference is ${allocation.difference}. This might be due to cumulative slot limits being reached.`;
+                           if (!allocationResultsHTML.includes(potentialWarning)) { // Add only once per item
+                               allocationResultsHTML += `\n<span class="info">${potentialWarning}</span>`;
+                           }
+                       }
+
+                 } else {
+                      allocationResultsHTML += "<span class='error'>Could not determine allocation result.</span>";
+                 }
+                 allocationResultsHTML += `</div>`; // End block for this item
+            }); // End forEach item
+
+            allocationResultsDiv.innerHTML = allocationResultsHTML;
+
+            // 6. Display Cumulative Usage Summary
+            let usageSummaryHTML = `<div class="usage-summary">--- Cumulative LPD Usage Summary (Max Slots: ${maxSlotsDisplay}) ---`;
+             usageSummaryHTML += "<ul>";
+             userLpdCombination.sort((a,b) => a-b).forEach(lpd => {
+                 const used = cumulativeUsage[lpd];
+                 const remaining = remainingSlots[lpd];
+                 usageSummaryHTML += `<li>LPD ${lpd}: Used ${used} times`
+                 if (maxSlotsIsFinite) {
+                     usageSummaryHTML += `, Remaining Slots: ${remaining}`;
+                     if (remaining < 0) { // Should not happen ideally
+                          usageSummaryHTML += ` <span class="error">(Error: Exceeded Limit!)</span>`;
+                     }
+                 }
+                  usageSummaryHTML += `</li>`;
+             });
+             usageSummaryHTML += "</ul></div>";
+             cumulativeUsageDiv.innerHTML = usageSummaryHTML;
+
+        } // End allocateAllItems
+
+    </script>
+
+</body>
+</html>

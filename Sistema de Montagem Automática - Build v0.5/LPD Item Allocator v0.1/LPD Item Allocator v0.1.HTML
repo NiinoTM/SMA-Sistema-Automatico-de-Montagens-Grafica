@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LPD Item Allocator</title>
+    <style>
+         /* Basic styling */
+         body { font-family: sans-serif; padding: 20px; }
+        label { display: block; margin-top: 10px; margin-bottom: 5px; font-weight: bold; }
+        textarea { width: 90%; min-height: 150px; margin-bottom: 10px; font-family: monospace; }
+        input[type="number"], input[type="text"] { padding: 8px; margin-bottom: 10px; width: 300px; } /* Wider text input */
+        button { padding: 10px 15px; cursor: pointer; background-color: #28a745; color: white; border: none; border-radius: 4px; margin-top: 10px; } /* Green button */
+        button:hover { background-color: #218838; }
+        #allocationResults { margin-top: 20px; padding: 15px; border: 1px solid #ccc; background-color: #f9f9f9; white-space: pre-wrap; font-family: monospace; }
+        .error { color: red; font-weight: bold; }
+        .info { color: blue; }
+        .input-group { margin-bottom: 15px; }
+        .highlight { background-color: #cff4fc; font-weight: bold; border: 1px solid #9eeaf9;} /* Light blue highlight for allocation sum */
+        .item-allocation { border-top: 1px dashed #aaa; margin-top: 10px; padding-top: 10px;} /* Style for each item's allocation */
+
+    </style>
+</head>
+<body>
+
+    <h1>LPD Item Allocator</h1>
+    <p>Allocates each item amount from the table using the provided LPD combination and max slots.</p>
+
+    <!-- Input fields -->
+    <div class="input-group">
+        <label for="tableData">Table Data (Details + Amount, one per line):</label>
+        <textarea id="tableData" placeholder="Example:
+Chimichurri	70000
+Louro Folhas	40000
+..."></textarea>
+    </div>
+     <div class="input-group">
+        <label for="lpdCombinationInput">LPD Combination (e.g., [3000, 7500, 10000, 16000]):</label>
+        <input type="text" id="lpdCombinationInput" placeholder="[3000, 7500, 10000, 16000]">
+    </div>
+    <div class="input-group">
+        <label for="maxSlots">Max Slots per LPD in Allocation:</label>
+        <input type="number" id="maxSlots" placeholder="e.g., 3 (blank=unlimited)" min="1" style="width: 120px;"> <!-- Keep width smaller for this -->
+    </div>
+
+    <button onclick="allocateAllItems()">Allocate Items</button>
+
+    <!-- Output area -->
+    <div id="allocationResults">Item Allocation results will appear here...</div>
+
+    <script>
+        // --- CONFIGURATION RULE (only relevant for allocation function's internal checks) ---
+        const MIN_LPD_VALUE_ALLOC = 0; // Minimum value accepted *within* the allocation function (usually positive)
+
+        // --- Find Closest Sum (Allocation DP) ---
+        // Purpose: Given a set of LPDs and a 'target' amount, find a combination
+        //          (allowing repetition up to 'maxSlotsPerLpd') summing closest to the target.
+        // Note: LPD values are validated inside, but assumed generally positive.
+        function findClosestSumWithRepetitionAndSlots(lpdArray, target, maxSlotsPerLpd) {
+             // Input checks
+             if (!lpdArray || lpdArray.length === 0) { return { sum: 0, difference: Math.abs(target), combination: [], error: "No LPDs provided for allocation" }; }
+             if (target < 0) { return { sum: 0, difference: Math.abs(target), combination: [], error: "Target amount cannot be negative" }; }
+             if (maxSlotsPerLpd === null || isNaN(maxSlotsPerLpd) || maxSlotsPerLpd < 1) { maxSlotsPerLpd = Infinity; }
+
+             // Prepare LPDs: Unique, sorted, and positive
+             lpdArray = [...new Set(lpdArray)].filter(lpd => lpd > 0).sort((a, b) => a - b);
+             if (lpdArray.length === 0) { return { sum: 0, difference: Math.abs(target), combination: [], error: "Provided LPDs list is empty or contains only non-positive values" }; }
+
+             // DP setup
+             const smallestLpd = lpdArray[0];
+             const maxSum = target + smallestLpd -1;
+             const dp = new Array(maxSum + 1).fill(null);
+             dp[0] = { count: 0, usage: {}, lastLpd: null };
+
+             // Build DP table iteratively
+             for (let i = 1; i <= maxSum; i++) { /* ... DP logic same as before ... */
+                 let bestStateForI = null;
+                 for (const lpd of lpdArray) {
+                     const prevSum = i - lpd;
+                     if (prevSum >= 0 && dp[prevSum] !== null) {
+                         const prevState = dp[prevSum]; const currentLpdUsage = (prevState.usage[lpd] || 0) + 1;
+                         if (currentLpdUsage <= maxSlotsPerLpd) {
+                             const newTotalCount = prevState.count + 1;
+                             if (bestStateForI === null || newTotalCount < bestStateForI.count) { const newUsage = { ...prevState.usage, [lpd]: currentLpdUsage }; bestStateForI = { count: newTotalCount, usage: newUsage, lastLpd: lpd }; }
+                         } } } dp[i] = bestStateForI;
+             }
+
+             // Find the sum closest to the target
+             let minDiff = Infinity; let closestSum = -1; let bestReachableState = null;
+             // Search down and up (same as before)
+             for (let i = target; i >= 0; i--) { if (dp[i] !== null) { const diff = target - i; if (diff < minDiff || (diff === minDiff && dp[i].count < bestReachableState.count)) { minDiff = diff; closestSum = i; bestReachableState = dp[i]; } if (diff > minDiff && closestSum !== -1) break; } }
+             for (let i = target + 1; i <= maxSum; i++) { if (dp[i] !== null) { const diff = i - target; if (diff < minDiff || (diff === minDiff && dp[i].count < bestReachableState.count)) { minDiff = diff; closestSum = i; bestReachableState = dp[i]; } if (diff >= minDiff && closestSum !== -1) break; } }
+             if (closestSum === -1) { if (target === 0 && dp[0] !== null) { closestSum = 0; minDiff = 0; bestReachableState = dp[0]; } else { closestSum = 0; minDiff = Math.abs(target - 0); bestReachableState = dp[0] || { count: 0, usage: {}, lastLpd: null }; } }
+
+             // Reconstruct the combination (same as before)
+             const combination = []; let currentSum = closestSum; let currentState = bestReachableState; let safetyCounter = 0; const maxLoops = (currentState?.count || 0) + lpdArray.length + 100;
+             while (currentSum > 0 && currentState?.lastLpd && safetyCounter < maxLoops) { /* ... backtracking logic ... */
+                 const usedLpd = currentState.lastLpd; combination.push(usedLpd); const prevSum = currentSum - usedLpd;
+                 if (prevSum >= 0 && dp[prevSum] !== null) { currentState = dp[prevSum]; currentSum = prevSum; }
+                 else { return { sum: closestSum, difference: minDiff, combination: combination.sort((a,b)=>a-b), error: `Backtracking state missing for ${prevSum}` }; }
+                 safetyCounter++;
+             }
+             // Final checks (same as before)
+             if (safetyCounter >= maxLoops) { return { sum: closestSum, difference: minDiff, combination: combination.sort((a,b)=>a-b), error: "Backtracking limit" }; }
+             if (currentSum !== 0 && closestSum !== 0) { return { sum: closestSum, difference: minDiff, combination: combination.sort((a,b)=>a-b), error: `Backtracking incomplete (final sum ${currentSum})` }; }
+             const reconstructedSum = combination.reduce((a, b) => a + b, 0);
+             if (reconstructedSum !== closestSum) { return { sum: closestSum, difference: minDiff, combination: combination.sort((a,b)=>a-b), error: `Reconstruction mismatch (${reconstructedSum} != ${closestSum})` }; }
+             const finalUsageCheck = {}; for(const lpd of combination) { finalUsageCheck[lpd] = (finalUsageCheck[lpd] || 0) + 1; if (finalUsageCheck[lpd] > maxSlotsPerLpd) { return { sum: closestSum, difference: minDiff, combination: combination.sort((a,b)=>a-b), error: `Slot limit violated for LPD ${lpd}` }; } }
+
+             return { sum: closestSum, difference: minDiff, combination: combination.sort((a,b)=>a-b) };
+        }
+
+
+        // --- Main Processing Function for Allocator ---
+        function allocateAllItems() {
+            // 1. Read and Validate Inputs
+            const tableDataInput = document.getElementById('tableData').value.trim();
+            const lpdCombinationInput = document.getElementById('lpdCombinationInput').value.trim();
+            const maxSlotsInput = document.getElementById('maxSlots').value;
+            const allocationResultsDiv = document.getElementById('allocationResults');
+
+            allocationResultsDiv.innerHTML = `Processing item allocations...`;
+
+            if (!tableDataInput) { allocationResultsDiv.innerHTML = '<span class="error">Error: Table data cannot be empty.</span>'; return; }
+            if (!lpdCombinationInput) { allocationResultsDiv.innerHTML = '<span class="error">Error: LPD Combination input cannot be empty.</span>'; return; }
+
+            let maxSlots = Infinity; // Default
+            if (maxSlotsInput) { maxSlots = parseInt(maxSlotsInput); if (isNaN(maxSlots) || maxSlots < 1) { allocationResultsDiv.innerHTML = '<span class="error">Error: Invalid Max Slots per LPD.</span>'; return; } }
+
+            // 2. Parse User-Provided LPD Combination
+            let userLpdCombination;
+            try {
+                 // Attempt to parse as JSON array, removing potential whitespace issues
+                userLpdCombination = JSON.parse(lpdCombinationInput.replace(/\s/g, ''));
+                if (!Array.isArray(userLpdCombination)) {
+                    throw new Error("Input is not an array.");
+                }
+                // Validate that all elements are positive numbers
+                 if (!userLpdCombination.every(item => typeof item === 'number' && item > 0)) {
+                     throw new Error("Array must contain only positive numbers.");
+                 }
+                 if (userLpdCombination.length === 0) {
+                      throw new Error("LPD Combination cannot be empty.");
+                 }
+            } catch (e) {
+                allocationResultsDiv.innerHTML = `<span class="error">Error parsing LPD Combination input. Please use JSON array format like [3000, 7500, 10000, 16000]. Details: ${e.message}</span>`;
+                return;
+            }
+
+            // 3. Parse Table Data (only need original items)
+            const lines = tableDataInput.split('\n');
+            const originalItems = [];
+            let parseErrors = [];
+
+            lines.forEach((line, index) => {
+                line = line.trim(); if (!line) return;
+                let parts = line.split('\t'); let details = '';
+                if (parts.length < 2) { parts = line.split(/\s+/); }
+                if (parts.length < 2) { parseErrors.push(`L${index + 1}: Cannot split: "${line}"`); return; }
+                const amountStr = parts[parts.length - 1];
+                details = parts.slice(0, -1).join(parts.length > 2 ? ' ' : '');
+                const amount = parseInt(amountStr);
+                 // Basic validation for amount needed for allocation
+                if (isNaN(amount)) { parseErrors.push(`L${index + 1}: Amount NaN "${amountStr}" for "${details}"`); return; }
+                if (amount < 0) { parseErrors.push(`L${index + 1}: Amount cannot be negative "${amount}" for "${details}"`); return; }
+                // Note: No need to check even or MIN_LPD_VALUE here, just store for allocation
+                originalItems.push({ details: details, amount: amount });
+            });
+
+            if (parseErrors.length > 0) { allocationResultsDiv.innerHTML = `<span class="error">Table Data Parse Errors:</span>\n${parseErrors.join('\n')}`; return; }
+            if (originalItems.length === 0) { allocationResultsDiv.innerHTML = `<span class="error">Error: No items parsed successfully from table data.</span>`; return; }
+
+            // 4. Allocate Each Original Item using the User's LPDs
+            let allocationResultsHTML = `--- Item Allocations (using LPDs: [${userLpdCombination.join(', ')}]) ---`;
+            let maxSlotsDisplay = (maxSlots === Infinity) ? "Unlimited" : maxSlots;
+
+            originalItems.forEach(item => {
+                 allocationResultsHTML += `<div class="item-allocation">`;
+                 allocationResultsHTML += `<b>${item.details}</b> (Target Amount: ${item.amount})\n`;
+                 allocationResultsHTML += `Max Slots per LPD: ${maxSlotsDisplay}\n`;
+
+                 // Call the allocation function for this item's amount
+                 const allocation = findClosestSumWithRepetitionAndSlots(userLpdCombination, item.amount, maxSlots);
+
+                 // Format allocation result
+                 if (allocation.error) {
+                      allocationResultsHTML += `<span class="error">Allocation Error: ${allocation.error}</span>\n`;
+                      allocationResultsHTML += `Closest Sum Found (before error): ${allocation.sum}\nDifference: ${allocation.difference}`;
+                      if(allocation.combination && allocation.combination.length > 0) { allocationResultsHTML += `\nPartial/Incomplete Combination: [${allocation.combination.sort((a,b)=>a-b).join(', ')}]`; }
+                 } else if (allocation.sum !== undefined) {
+                      allocationResultsHTML += `<span class="highlight">Closest Achievable Sum: ${allocation.sum}</span>\n`;
+                      allocationResultsHTML += `(Difference from Target Amount: ${allocation.difference})\n`;
+                      allocationResultsHTML += `Achieved with combination (${allocation.combination.length} items): [${allocation.combination.join(', ')}]`;
+                      const usageCounts = {}; allocation.combination.forEach(l => usageCounts[l] = (usageCounts[l] || 0) + 1);
+                      allocationResultsHTML += `\nUsage Counts: { ${Object.entries(usageCounts).map(([lpd, count]) => `"${lpd}": ${count}`).join(', ')} }`;
+                 } else {
+                      allocationResultsHTML += "<span class='error'>Could not determine allocation result.</span>";
+                 }
+                 allocationResultsHTML += `</div>`; // End block for this item
+            });
+
+            allocationResultsDiv.innerHTML = allocationResultsHTML;
+
+        } // End allocateAllItems
+
+    </script>
+
+</body>
+</html>

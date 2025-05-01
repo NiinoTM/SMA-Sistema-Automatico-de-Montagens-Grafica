@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LPD Combination (Obligatory LPD near Min Amount) & Allocation</title>
+    <style>
+         body { font-family: sans-serif; padding: 20px; }
+        label { display: block; margin-top: 10px; margin-bottom: 5px; font-weight: bold; }
+        textarea { width: 90%; min-height: 150px; margin-bottom: 10px; font-family: monospace; }
+        input[type="number"] { padding: 8px; margin-bottom: 10px; width: 120px; }
+        button { padding: 10px 15px; cursor: pointer; background-color: #007bff; color: white; border: none; border-radius: 4px; margin-top: 10px; }
+        button:hover { background-color: #0056b3; }
+        #results, #allocationResults { margin-top: 20px; padding: 15px; border: 1px solid #ccc; background-color: #f9f9f9; white-space: pre-wrap; font-family: monospace; }
+        .error { color: red; font-weight: bold; }
+        .info { color: blue; }
+        .input-group { margin-bottom: 15px; }
+        .highlight { background-color: yellow; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+    <h1>Find LPD Combination (Obligatory LPD near Min Amount, >=2000) & Allocate</h1>
+
+    <div class="input-group">
+        <label for="tableData">Table Data (Details + Amount, one per line):</label>
+        <textarea id="tableData" placeholder="Example: Item A	3000 (min amount)
+Item B	2500 (ignored, LPD<2000)
+Item C	3500
+Item D	8000 --> Obligatory LPD could be 3000 or 3500"></textarea>
+    </div>
+    <div class="input-group">
+        <label for="targetSum">Target Sum for LPD Combination:</label>
+        <input type="number" id="targetSum" placeholder="e.g., 36000">
+    </div>
+    <div class="input-group">
+        <label for="combinationSize">Number of Distinct LPDs (>=2000) in Combination:</label>
+        <input type="number" id="combinationSize" value="4" min="2">
+    </div>
+    <div class="input-group">
+        <label for="maxSlots">Max Slots per LPD in Allocation:</label>
+        <input type="number" id="maxSlots" placeholder="e.g., 3 (blank=unlimited)" min="1">
+    </div>
+    <div class="input-group">
+        <label for="specialNumber">Special Number to Allocate:</label>
+        <input type="number" id="specialNumber" placeholder="e.g., 70000">
+    </div>
+    <button onclick="processAll()">Find Combination & Allocate</button>
+    <div id="results">LPD Combination results will appear here...</div>
+    <div id="allocationResults">Special Number Allocation results will appear here...</div>
+
+
+    <script>
+        let lastFoundLpdCombination = null;
+        const MIN_LPD_VALUE = 2000;
+        const OBLIGATORY_RANGE = 500; // Range +/- from minAmountFound
+
+        // --- Recursive Combination Finder ---
+        // Function remains the same as v0.1.11
+        function findSumCombinationRecursive(lpdValueObjectsToSearch, target, k, startIndex, currentCombinationValues) {
+            if (currentCombinationValues.length === k) {
+                const currentSum = currentCombinationValues.reduce((sum, item) => sum + item, 0);
+                if (Math.abs(currentSum - target) < 0.01) { return [...currentCombinationValues]; } return null;
+            }
+            if (startIndex >= lpdValueObjectsToSearch.length || currentCombinationValues.length > k || lpdValueObjectsToSearch.length - startIndex < k - currentCombinationValues.length) { return null; }
+            for (let i = startIndex; i < lpdValueObjectsToSearch.length; i++) {
+                const currentLpdValue = lpdValueObjectsToSearch[i].value;
+                if (!currentCombinationValues.includes(currentLpdValue)) {
+                    currentCombinationValues.push(currentLpdValue);
+                    const result = findSumCombinationRecursive(lpdValueObjectsToSearch, target, k, i + 1, currentCombinationValues);
+                    if (result) { return result; }
+                    currentCombinationValues.pop(); // Backtrack
+                }
+            }
+            return null;
+        }
+
+        // --- Find Closest Sum (Allocation DP) ---
+        // Function remains the same as v0.1.11
+        function findClosestSumWithRepetitionAndSlots(lpdArray, target, maxSlotsPerLpd) {
+             if (!lpdArray || lpdArray.length === 0) { return { sum: 0, difference: Math.abs(target), combination: [], error: "No LPDs provided" }; }
+             if (target < 0) { return { sum: 0, difference: Math.abs(target), combination: [], error: "Negative target" }; }
+             if (maxSlotsPerLpd === null || isNaN(maxSlotsPerLpd) || maxSlotsPerLpd < 1) { maxSlotsPerLpd = Infinity; }
+             lpdArray = [...new Set(lpdArray)].sort((a, b) => a - b);
+             if (lpdArray.length === 0 || lpdArray[0] <= 0) { return { sum: 0, difference: Math.abs(target), combination: [], error: "Invalid LPDs for allocation" }; }
+             const smallestLpd = lpdArray[0]; const maxSum = target + smallestLpd -1; const dp = new Array(maxSum + 1).fill(null); dp[0] = { count: 0, usage: {}, lastLpd: null };
+             for (let i = 1; i <= maxSum; i++) {
+                 let bestStateForI = null;
+                 for (const lpd of lpdArray) {
+                     const prevSum = i - lpd;
+                     if (prevSum >= 0 && dp[prevSum] !== null) {
+                         const prevState = dp[prevSum]; const currentLpdUsage = (prevState.usage[lpd] || 0) + 1;
+                         if (currentLpdUsage <= maxSlotsPerLpd) {
+                             const newTotalCount = prevState.count + 1;
+                             if (bestStateForI === null || newTotalCount < bestStateForI.count) { const newUsage = { ...prevState.usage, [lpd]: currentLpdUsage }; bestStateForI = { count: newTotalCount, usage: newUsage, lastLpd: lpd }; }
+                         } } } dp[i] = bestStateForI;
+             }
+             let minDiff = Infinity; let closestSum = -1; let bestReachableState = null;
+             for (let i = target; i >= 0; i--) { if (dp[i] !== null) { const diff = target - i; if (diff < minDiff || (diff === minDiff && dp[i].count < bestReachableState.count)) { minDiff = diff; closestSum = i; bestReachableState = dp[i]; } if (diff > minDiff && closestSum !== -1) break; } }
+             for (let i = target + 1; i <= maxSum; i++) { if (dp[i] !== null) { const diff = i - target; if (diff < minDiff || (diff === minDiff && dp[i].count < bestReachableState.count)) { minDiff = diff; closestSum = i; bestReachableState = dp[i]; } if (diff >= minDiff && closestSum !== -1) break; } }
+             if (closestSum === -1) { if (target === 0 && dp[0] !== null) { closestSum = 0; minDiff = 0; bestReachableState = dp[0]; } else { closestSum = 0; minDiff = Math.abs(target - 0); bestReachableState = dp[0] || { count: 0, usage: {}, lastLpd: null }; } }
+             const combination = []; let currentSum = closestSum; let currentState = bestReachableState; let safetyCounter = 0; const maxLoops = (currentState?.count || 0) + lpdArray.length + 100;
+             while (currentSum > 0 && currentState?.lastLpd && safetyCounter < maxLoops) {
+                 const usedLpd = currentState.lastLpd; combination.push(usedLpd); const prevSum = currentSum - usedLpd;
+                 if (prevSum >= 0 && dp[prevSum] !== null) { currentState = dp[prevSum]; currentSum = prevSum; }
+                 else { return { sum: closestSum, difference: minDiff, combination: combination.sort((a,b)=>a-b), error: `Backtracking state missing for ${prevSum}` }; }
+                 safetyCounter++;
+             }
+             if (safetyCounter >= maxLoops) { return { sum: closestSum, difference: minDiff, combination: combination.sort((a,b)=>a-b), error: "Backtracking limit" }; }
+             if (currentSum !== 0 && closestSum !== 0) { return { sum: closestSum, difference: minDiff, combination: combination.sort((a,b)=>a-b), error: `Backtracking incomplete (final sum ${currentSum})` }; }
+             const reconstructedSum = combination.reduce((a, b) => a + b, 0);
+             if (reconstructedSum !== closestSum) { return { sum: closestSum, difference: minDiff, combination: combination.sort((a,b)=>a-b), error: `Reconstruction mismatch (${reconstructedSum} != ${closestSum})` }; }
+             const finalUsageCheck = {}; for(const lpd of combination) { finalUsageCheck[lpd] = (finalUsageCheck[lpd] || 0) + 1; if (finalUsageCheck[lpd] > maxSlotsPerLpd) { return { sum: closestSum, difference: minDiff, combination: combination.sort((a,b)=>a-b), error: `Slot limit violated for LPD ${lpd}` }; } }
+             return { sum: closestSum, difference: minDiff, combination: combination.sort((a,b)=>a-b) };
+        }
+
+
+        // --- Main Processing Function ---
+        function processAll() {
+            // Read inputs
+            // ... (same as before) ...
+            const tableDataInput = document.getElementById('tableData').value.trim();
+            const targetSumInput = document.getElementById('targetSum').value;
+            const combinationSizeInput = document.getElementById('combinationSize').value;
+            const maxSlotsInput = document.getElementById('maxSlots').value;
+            const specialNumberInput = document.getElementById('specialNumber').value;
+            const resultsDiv = document.getElementById('results');
+            const allocationResultsDiv = document.getElementById('allocationResults');
+            resultsDiv.innerHTML = `Processing LPD Combination (>= ${MIN_LPD_VALUE}, with Obligatory LPD)...`;
+            allocationResultsDiv.innerHTML = 'Waiting for LPD Combination...';
+            lastFoundLpdCombination = null;
+
+            // Validate inputs
+            // ... (same as before) ...
+            if (!tableDataInput) { resultsDiv.innerHTML = '<span class="error">Error: Table data cannot be empty.</span>'; return; }
+            let maxSlots = Infinity;
+            if (maxSlotsInput) { maxSlots = parseInt(maxSlotsInput); if (isNaN(maxSlots) || maxSlots < 1) { allocationResultsDiv.innerHTML = '<span class="error">Error: Invalid Max Slots per LPD.</span>'; resultsDiv.innerHTML = '<span class="error">Input Error.</span>'; return; } }
+            const initialTargetSum = parseInt(targetSumInput);
+            const combinationSize = parseInt(combinationSizeInput);
+            if (isNaN(initialTargetSum)) { resultsDiv.innerHTML = '<span class="error">Error: Invalid Target Sum.</span>'; return; }
+            if (isNaN(combinationSize) || combinationSize < 2) { resultsDiv.innerHTML = `<span class="error">Error: Invalid Number of LPDs (must be >= 2).</span>`; return; }
+            const specialNumber = specialNumberInput ? parseInt(specialNumberInput) : null;
+             if (specialNumberInput && (isNaN(specialNumber) || specialNumber < 0)) { allocationResultsDiv.innerHTML = '<span class="error">Error: Invalid or negative Special Number.</span>'; resultsDiv.innerHTML = '<span class="error">Input Error.</span>'; return; }
+
+
+            // 1. Parse Table Data & Find Min Amount
+            const lines = tableDataInput.split('\n');
+            const lpdFrequencies = {};
+            let parseErrors = [];
+            let minAmountFound = Infinity;
+
+            lines.forEach((line, index) => {
+                line = line.trim(); if (!line) return;
+                let parts = line.split('\t'); if (parts.length < 2) parts = line.split(/\s+/);
+                if (parts.length < 2) { parseErrors.push(`L${index + 1}: Cannot split: "${line}"`); return; }
+                const amountStr = parts[parts.length - 1]; const amount = parseInt(amountStr);
+                if (isNaN(amount)) { parseErrors.push(`L${index + 1}: Amount NaN "${amountStr}"`); return; }
+                if (amount <= 0) { parseErrors.push(`L${index + 1}: Amount <=0 "${amount}"`); return; }
+                if (amount % 2 !== 0) { parseErrors.push(`L${index + 1}: Amount odd "${amount}"`); return; }
+                if (amount < minAmountFound) { minAmountFound = amount; }
+                const lpd = amount / 2;
+                if (lpd >= MIN_LPD_VALUE) { lpdFrequencies[lpd] = (lpdFrequencies[lpd] || 0) + 1; }
+            });
+
+            if (parseErrors.length > 0) { resultsDiv.innerHTML = `<span class="error">Parse Errors:</span>\n${parseErrors.join('\n')}`; allocationResultsDiv.innerHTML = ''; return; }
+            if (minAmountFound === Infinity) { resultsDiv.innerHTML = `<span class="error">Error: No valid amounts found.</span>`; allocationResultsDiv.innerHTML = ''; return; }
+
+            // 1.5 Determine Obligatory LPD based on Min Amount
+            let obligatoryLpdLog = [`Minimum Amount in table: ${minAmountFound}`]; //*** Reference point is Amount
+            let bestObligatoryCandidate = null;
+            let minDifferenceFoundSoFar = Infinity;
+            const uniqueValidLpdList = Object.entries(lpdFrequencies)
+                                      .map(([lpd, freq]) => ({ value: parseInt(lpd), frequency: freq }));
+
+            obligatoryLpdLog.push(`Valid LPDs Found (>=${MIN_LPD_VALUE}): [${uniqueValidLpdList.map(l=>l.value).sort((a,b)=>a-b).join(', ')}]`);
+            obligatoryLpdLog.push(`Searching for valid LPD within +/- ${OBLIGATORY_RANGE} of Min Amount (${minAmountFound})...`);
+
+            for (const lpdObj of uniqueValidLpdList) {
+                 const currentLpdValue = lpdObj.value;
+                 // *** Calculate difference from minAmountFound ***
+                 const diff = Math.abs(currentLpdValue - minAmountFound);
+
+                 obligatoryLpdLog.push(`   - Checking valid LPD ${currentLpdValue}: Diff from Min Amount ${minAmountFound} = ${diff}`);
+
+                 if (diff <= OBLIGATORY_RANGE) {
+                     obligatoryLpdLog.push(`     -> Within range +/- ${OBLIGATORY_RANGE}`);
+                     if (diff < minDifferenceFoundSoFar) {
+                          minDifferenceFoundSoFar = diff;
+                          bestObligatoryCandidate = lpdObj;
+                          obligatoryLpdLog.push(`     -> New best candidate (smallest difference): ${bestObligatoryCandidate.value}`);
+                     } else if (diff === minDifferenceFoundSoFar) {
+                          // Tie-breaking: prefer smaller LPD value
+                          if (currentLpdValue < bestObligatoryCandidate.value) {
+                               bestObligatoryCandidate = lpdObj;
+                               obligatoryLpdLog.push(`     -> New best candidate (same difference, smaller value): ${bestObligatoryCandidate.value}`);
+                          }
+                     }
+                 }
+            }
+
+            if (bestObligatoryCandidate === null) {
+                 resultsDiv.innerHTML = `<span class="error">Error: No valid LPD (>= ${MIN_LPD_VALUE}) found within +/- ${OBLIGATORY_RANGE} of the Minimum Amount (${minAmountFound}).</span>\n${obligatoryLpdLog.join('\n')}`;
+                 allocationResultsDiv.innerHTML = ''; return;
+            }
+
+            const finalObligatoryLpd = bestObligatoryCandidate.value;
+            obligatoryLpdLog.push(`Selected Obligatory LPD: ${finalObligatoryLpd} (Closest valid LPD to Min Amount ${minAmountFound} within +/- ${OBLIGATORY_RANGE}, Diff: ${minDifferenceFoundSoFar})`); // Updated log message
+
+
+            // 1.7 Prepare List for Search (Sort valid list by freq, remove obligatory)
+            uniqueValidLpdList.sort((a, b) => { // Sort by frequency DESC, then value DESC
+                if (b.frequency !== a.frequency) return b.frequency - a.frequency;
+                return b.value - a.value;
+            });
+            let frequencyLog = [`Valid LPDs Sorted by Frequency (Value(Frequency)): ${uniqueValidLpdList.map(l => `${l.value}(${l.frequency})`).join(', ')}`];
+            const searchLpdList = uniqueValidLpdList.filter(lpdObj => lpdObj.value !== finalObligatoryLpd);
+            const neededOtherLpds = combinationSize - 1;
+            if (neededOtherLpds > 0 && searchLpdList.length < neededOtherLpds) {
+                 resultsDiv.innerHTML = `<span class="error">Error: Need ${neededOtherLpds} other LPDs excluding obligatory ${finalObligatoryLpd}. Found only ${searchLpdList.length}.</span>\n${obligatoryLpdLog.join('\n')}\n${frequencyLog.join('\n')}\nAvailable others: [${searchLpdList.map(l=>l.value).join(', ')}]`;
+                 allocationResultsDiv.innerHTML = ''; return;
+            }
+             if (neededOtherLpds === 0 && combinationSize === 1) {
+                if (finalObligatoryLpd === initialTargetSum) { lastFoundLpdCombination = [finalObligatoryLpd]; }
+            }
+
+            // 2. Find LPD Combination (Recursive Search + Target Adjustment)
+            // ... (Search loop code remains exactly the same as v0.1.11) ...
+             const MAX_ADJUSTMENT_ITERATIONS = 50;
+            const ADJUSTMENT_STEP = 500;
+            let currentOverallTarget = initialTargetSum;
+            let attempts = 0;
+            let adjustment = ADJUSTMENT_STEP;
+            let direction = 1;
+            let searchLog = [`--- Obligatory LPD Selection ---`];
+            searchLog.push(...obligatoryLpdLog);
+            searchLog.push(`--- Available LPDs ---`);
+            searchLog.push(...frequencyLog);
+            searchLog.push(`--- Combination Search ---`);
+            searchLog.push(`Searching for ${neededOtherLpds} other LPDs to combine with ${finalObligatoryLpd} to sum near: ${initialTargetSum}`);
+            const maxTotalAttempts = 1 + MAX_ADJUSTMENT_ITERATIONS * 2;
+
+            if (!(combinationSize === 1 && finalObligatoryLpd === initialTargetSum)) {
+                 while (attempts < maxTotalAttempts && lastFoundLpdCombination === null) {
+                    const targetForRecursion = currentOverallTarget - finalObligatoryLpd;
+                    let foundKMinus1Combination = null;
+                    if (attempts > 0) { searchLog.push(`Attempt ${attempts + 1}: Trying overall sum ${currentOverallTarget} (Need remaining ${neededOtherLpds} LPDs to sum to ${targetForRecursion})...`); }
+                    else { searchLog.push(`Attempt 1: Trying exact overall sum ${currentOverallTarget} (Need remaining ${neededOtherLpds} LPDs to sum to ${targetForRecursion})...`); }
+                    if (neededOtherLpds > 0) { foundKMinus1Combination = findSumCombinationRecursive(searchLpdList, targetForRecursion, neededOtherLpds, 0, []); }
+                    else if (neededOtherLpds === 0) { if (Math.abs(targetForRecursion) < 0.01) { foundKMinus1Combination = []; } }
+                    if (foundKMinus1Combination !== null) {
+                        searchLog.push(`<span class="highlight">Success! Found LPDs for overall sum ${currentOverallTarget}.</span>`);
+                        lastFoundLpdCombination = [...foundKMinus1Combination, finalObligatoryLpd].sort((a,b)=>a-b);
+                        break; // Exit loop
+                    }
+                    attempts++; if (attempts >= maxTotalAttempts) break;
+                    currentOverallTarget = initialTargetSum + direction * adjustment;
+                    if (currentOverallTarget < 0 && initialTargetSum >=0) {
+                        searchLog.push(`Skipping negative overall target ${currentOverallTarget}.`);
+                        if (direction === -1) { direction = 1; currentOverallTarget = initialTargetSum + direction * adjustment; }
+                        if (currentOverallTarget < 0) { direction *= -1; if (direction === 1) { adjustment += ADJUSTMENT_STEP; } continue; }
+                    }
+                    direction *= -1; if (direction === 1) { adjustment += ADJUSTMENT_STEP; }
+                } // End while loop
+            }
+
+
+            // 3. Display Results and Allocate Special Number (if applicable)
+            // ... (Display/Allocation code remains exactly the same as v0.1.11) ...
+            if (lastFoundLpdCombination) {
+                 const achievedSum = lastFoundLpdCombination.reduce((s, v) => s + v, 0);
+                 resultsDiv.innerHTML = searchLog.join('\n')
+                                 + `\n\n<span class="highlight">Final LPD Combination (${combinationSize} LPDs, incl. Obligatory ${finalObligatoryLpd}): [${lastFoundLpdCombination.join(', ')}]</span>`
+                                 + `\nAchieved Sum: ${achievedSum}`;
+                if (specialNumber !== null) {
+                    let maxSlotsDisplay = (maxSlots === Infinity) ? "Unlimited" : maxSlots;
+                    allocationResultsDiv.innerHTML = `Allocating Special Number: ${specialNumber}\nUsing Found LPDs: [${lastFoundLpdCombination.join(', ')}]\nMax Slots per LPD: ${maxSlotsDisplay}...`;
+                    const allocation = findClosestSumWithRepetitionAndSlots(lastFoundLpdCombination, specialNumber, maxSlots);
+                    let allocMsg = `--- Allocation Result ---\n`;
+                    allocMsg += `Target Special Number: ${specialNumber}\n`;
+                    allocMsg += `Using LPDs (>=${MIN_LPD_VALUE}): [${lastFoundLpdCombination.join(', ')}]\n`;
+                    allocMsg += `Max Slots per LPD: ${maxSlotsDisplay}\n\n`;
+                    if (allocation.error) {
+                         allocMsg += `<span class="error">Allocation Error: ${allocation.error}</span>\n`;
+                         allocMsg += `Closest Sum Found (before error): ${allocation.sum}\nDifference: ${allocation.difference}`;
+                         if(allocation.combination && allocation.combination.length > 0) { allocMsg += `\nPartial/Incomplete Combination: [${allocation.combination.sort((a,b)=>a-b).join(', ')}]`; }
+                    } else if (allocation.sum !== undefined) {
+                         allocMsg += `<span class="highlight">Closest Achievable Sum: ${allocation.sum}</span>\n`;
+                         allocMsg += `(Difference from Special Number: ${allocation.difference})\n`;
+                         allocMsg += `Achieved with combination (${allocation.combination.length} items): [${allocation.combination.join(', ')}]`;
+                         const usageCounts = {}; allocation.combination.forEach(l => usageCounts[l] = (usageCounts[l] || 0) + 1);
+                         allocMsg += `\nUsage Counts: { ${Object.entries(usageCounts).map(([lpd, count]) => `"${lpd}": ${count}`).join(', ')} }`;
+                    } else {
+                         allocMsg += "<span class='error'>Could not determine allocation result.</span>";
+                    }
+                    allocationResultsDiv.innerHTML = allocMsg;
+                } else {
+                    allocationResultsDiv.innerHTML = "No Special Number provided, skipping allocation step.";
+                }
+            } else {
+                 resultsDiv.innerHTML = searchLog.join('\n')
+                                    + `\n\n<span class="error">No combination of ${combinationSize} distinct LPDs (including obligatory ${finalObligatoryLpd}, >=${MIN_LPD_VALUE}) found summing exactly to ${initialTargetSum} or nearby values within the search limit.</span>`
+                                    + `\n\n(Note: Search list excludes the obligatory LPD. Check logs above for details.)`;
+                 allocationResultsDiv.innerHTML = "Cannot allocate Special Number as no suitable LPD combination was found.";
+            }
+        }
+    </script>
+
+</body>
+</html>

@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LPD Sum Finder</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            padding: 20px;
+        }
+        label {
+            display: block;
+            margin-top: 10px;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        textarea {
+            width: 90%;
+            min-height: 150px;
+            margin-bottom: 10px;
+            font-family: monospace;
+        }
+        input[type="number"] {
+            padding: 8px;
+            margin-bottom: 10px;
+        }
+        button {
+            padding: 10px 15px;
+            cursor: pointer;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            margin-top: 10px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        #results {
+            margin-top: 20px;
+            padding: 15px;
+            border: 1px solid #ccc;
+            background-color: #f9f9f9;
+            white-space: pre-wrap; /* Preserve formatting */
+            font-family: monospace;
+        }
+        .error {
+            color: red;
+            font-weight: bold;
+        }
+         .info {
+            color: blue;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Find Combination of 4 LPDs</h1>
+
+    <label for="tableData">Table Data (Details + Amount, one per line):</label>
+    <textarea id="tableData" placeholder="Example:
+Tempero Para Aves	3000
+Pimenta Branca Moída	3000
+Pimenta Preta Moída	4000
+Alho Poró	5000
+..."></textarea>
+
+    <label for="targetSum">Target Sum:</label>
+    <input type="number" id="targetSum" placeholder="e.g., 37000">
+
+    <button onclick="findCombination()">Find Combination</button>
+
+    <div id="results">Results will appear here...</div>
+
+    <script>
+        function findCombination() {
+            const tableDataInput = document.getElementById('tableData').value.trim();
+            const targetSumInput = document.getElementById('targetSum').value;
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML = 'Processing...'; // Clear previous results
+
+            if (!tableDataInput) {
+                resultsDiv.innerHTML = '<span class="error">Error: Table data cannot be empty.</span>';
+                return;
+            }
+            if (!targetSumInput) {
+                resultsDiv.innerHTML = '<span class="error">Error: Target sum cannot be empty.</span>';
+                return;
+            }
+
+            const initialTargetSum = parseInt(targetSumInput);
+            if (isNaN(initialTargetSum)) {
+                 resultsDiv.innerHTML = '<span class="error">Error: Invalid Target Sum. Please enter a number.</span>';
+                return;
+            }
+
+            // 1. Parse Table Data and Calculate LPDs + Frequencies
+            const lines = tableDataInput.split('\n');
+            const lpdFrequencies = {};
+            const validLPDs = [];
+            let parseErrors = [];
+
+            lines.forEach((line, index) => {
+                line = line.trim();
+                if (!line) return;
+
+                // Try splitting by tab first, then multiple spaces
+                let parts = line.split('\t');
+                if (parts.length < 2) {
+                    parts = line.split(/\s+/); // Split by one or more spaces
+                }
+
+                if (parts.length < 2) {
+                    parseErrors.push(`Line ${index + 1}: Could not properly split into Details and Amount.`);
+                    return;
+                }
+
+                const amountStr = parts[parts.length - 1]; // Take the last part as amount
+                const amount = parseInt(amountStr);
+
+                if (isNaN(amount)) {
+                    parseErrors.push(`Line ${index + 1}: Amount "${amountStr}" is not a valid number.`);
+                    return;
+                }
+                if (amount <= 0) {
+                     parseErrors.push(`Line ${index + 1}: Amount "${amount}" must be positive.`);
+                     return;
+                }
+                 if (amount % 2 !== 0) {
+                    parseErrors.push(`Line ${index + 1}: Amount "${amount}" must be an even number to calculate LPD.`);
+                    return;
+                }
+
+                const lpd = amount / 2;
+                lpdFrequencies[lpd] = (lpdFrequencies[lpd] || 0) + 1;
+                validLPDs.push(lpd); // Keep track of all valid LPDs derived
+            });
+
+             if (parseErrors.length > 0) {
+                resultsDiv.innerHTML = `<span class="error">Errors parsing table data:</span>\n${parseErrors.join('\n')}`;
+                return;
+            }
+
+            // 2. Prepare LPD List for Selection (Unique LPDs sorted by frequency)
+            const uniqueLpdList = Object.entries(lpdFrequencies)
+                .map(([lpd, freq]) => ({ value: parseInt(lpd), frequency: freq }))
+                .sort((a, b) => b.frequency - a.frequency); // Sort descending by frequency
+
+            if (uniqueLpdList.length < 4) {
+                 resultsDiv.innerHTML = `<span class="error">Error: Need at least 4 unique valid even Amounts in the table to find a combination of 4 LPDs. Found only ${uniqueLpdList.length}.</span>`;
+                 return;
+            }
+
+            // 3. Search Function (Brute-force combination of 4 distinct LPDs)
+             //    We use the uniqueLpdList values here. The frequency sorting helps
+             //    in finding combinations involving common LPDs potentially faster,
+             //    but the check itself iterates through all combinations.
+            function findSumCombination(lpdValues, target) {
+                const n = lpdValues.length;
+                if (n < 4) return null; // Not enough unique LPDs
+
+                for (let i = 0; i < n; i++) {
+                    for (let j = i + 1; j < n; j++) {
+                        for (let k = j + 1; k < n; k++) {
+                            for (let l = k + 1; l < n; l++) {
+                                if (lpdValues[i].value + lpdValues[j].value + lpdValues[k].value + lpdValues[l].value === target) {
+                                    return [lpdValues[i].value, lpdValues[j].value, lpdValues[k].value, lpdValues[l].value];
+                                }
+                            }
+                        }
+                    }
+                }
+                return null; // No combination found
+            }
+
+            // 4. Iterative Search with Target Adjustment
+            const MAX_INITIAL_TRIES = 10; // Try the exact target a few times (though once is enough with brute-force)
+            const MAX_ADJUSTMENT_ITERATIONS = 50; // Limit how far we search
+            let currentSum = initialTargetSum;
+            let attempts = 0;
+            let adjustment = 500;
+            let direction = 1; // 1 for increase, -1 for decrease
+            let foundCombination = null;
+            let searchLog = [`Searching for target: ${initialTargetSum}`];
+
+
+            while (attempts < MAX_INITIAL_TRIES + MAX_ADJUSTMENT_ITERATIONS * 2) { // *2 because we try + and -
+                 if (attempts > 0) { // Log attempts after the first one
+                      searchLog.push(`Attempt ${attempts + 1}: Trying sum ${currentSum}...`);
+                 }
+
+                 foundCombination = findSumCombination(uniqueLpdList, currentSum);
+
+                 if (foundCombination) {
+                    searchLog.push(`\nSuccess! Found combination for sum ${currentSum}.`);
+                    break; // Exit loop if combination is found
+                 }
+
+                 attempts++;
+
+                 // Start adjusting only after initial tries or immediately if MAX_INITIAL_TRIES is 0
+                 if (attempts >= MAX_INITIAL_TRIES) {
+                     // Calculate next sum to try
+                     currentSum = initialTargetSum + direction * adjustment;
+
+                     // Switch direction
+                     direction *= -1;
+
+                     // If direction is positive again, it means we tried +adjustment and -adjustment
+                     // So, increase the adjustment amount for the next round
+                     if (direction === 1) {
+                         adjustment += 500;
+                     }
+                 }
+                 // Optional: Add a small delay if needed for UI responsiveness during long searches
+                 // await new Promise(resolve => setTimeout(resolve, 0));
+            }
+
+
+            // 5. Display Results
+            if (foundCombination) {
+                resultsDiv.innerHTML = searchLog.join('\n') + `\n\nFound Combination: [${foundCombination.join(', ')}] \nSum: ${currentSum}`;
+            } else {
+                 resultsDiv.innerHTML = searchLog.join('\n') + `\n\n<span class="error">No combination of 4 distinct LPDs found summing to ${initialTargetSum} or nearby values within the search limit.</span>\n\nUnique LPDs (Value: Frequency):\n` + uniqueLpdList.map(item => `${item.value}: ${item.frequency}`).join('\n');
+            }
+        }
+    </script>
+
+</body>
+</html>

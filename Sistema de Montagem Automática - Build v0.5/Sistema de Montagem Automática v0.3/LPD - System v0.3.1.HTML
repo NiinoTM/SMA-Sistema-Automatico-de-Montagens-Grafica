@@ -1,0 +1,691 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- CHANGE: More specific title -->
+    <title>LPD System v0.5 (Selectable Method)</title>
+    <style>
+        /* --- MERGED STYLES (Mostly same as v0.4) --- */
+
+        /* Basic Styling (Common) */
+        body {
+            font-family: sans-serif;
+            padding-left: 210px; /* Space for the fixed sidebar */
+            padding-top: 10px;
+            padding-right: 10px;
+            padding-bottom: 20px;
+        }
+        label { display: block; margin-top: 10px; margin-bottom: 5px; font-weight: bold; }
+        textarea { width: 95%; min-height: 150px; margin-bottom: 10px; font-family: monospace; }
+        input[type="number"], input[type="text"] { padding: 8px; margin-bottom: 10px; width: 120px; }
+        button { padding: 10px 15px; cursor: pointer; background-color: #007bff; color: white; border: none; border-radius: 4px; margin-top: 10px; margin-right: 10px; }
+        button:hover { background-color: #0056b3; }
+        button.secondary { background-color: #6c757d; } /* Style for the new button */
+        button.secondary:hover { background-color: #5c636a; }
+        .input-group { margin-bottom: 15px; }
+        .error { color: red; font-weight: bold; }
+        .info { color: blue; }
+        .warning { color: orange; font-weight: bold; } /* Made warning bold */
+        .success { color: green; font-weight: bold; }
+        .highlight { background-color: yellow; font-weight: bold; border: 1px solid #ffeeba; padding: 2px 4px; }
+        .output-section { scroll-margin-top: 10px; }
+
+        /* Finder Specific Styles */
+        #finderResultsLog { margin-top: 20px; padding: 15px; border: 1px solid #ccc; background-color: #f0f0f0; white-space: pre-wrap; font-family: monospace; }
+        #foundCombinationDisplay { margin-top: 10px; padding: 10px; border: 2px dashed #007bff; background-color: #e7f3ff; font-family: monospace; font-size: 1.1em; font-weight: bold; }
+        .fallback-gcd { color: darkorange; font-weight: bold; }
+        .fallback-prop { color: purple; font-weight: bold; }
+        .target-section { border-top: 2px solid #aaa; padding-top: 10px; margin-top: 15px; }
+        .candidate-section { border-left: 3px solid #ddd; padding-left: 10px; margin-top: 5px; margin-bottom: 5px; }
+        .fallback-section { border-top: 2px solid darkorange; padding-top: 10px; margin-top: 15px; }
+        .proportional-fallback-section, .proportional-direct-section { border-top: 2px solid purple; padding-top: 10px; margin-top: 15px; } /* Unified style */
+
+        /* Allocator Specific Styles */
+        #sidebar { position: fixed; left: 0; top: 0; width: 190px; height: 100%; background-color: #f1f1f1; padding: 15px 10px; border-right: 1px solid #ccc; overflow-y: auto; font-size: 0.9em; }
+        #sidebar h3 { margin-top: 0; margin-bottom: 15px; border-bottom: 1px solid #ccc; padding-bottom: 5px; }
+        #sidebar ul { list-style: none; padding: 0; margin: 0; }
+        #sidebar li a { display: block; padding: 8px 5px; text-decoration: none; color: #0d6efd; border-radius: 3px; margin-bottom: 3px; }
+        #sidebar li a:hover { background-color: #e9ecef; color: #0a58ca; }
+        #statusArea, #strategyComparison, #allocationResults, #cumulativeUsage, #adjustmentLog, #lpdBreakdown, #finalSummaryTableDiv, #variationLog { margin-top: 20px; padding: 15px; border: 1px solid #ccc; background-color: #f9f9f9; white-space: pre-wrap; font-family: monospace; }
+        .positive-diff { color: #dc3545; }
+        .negative-diff { color: #198754; }
+        .zero-diff { color: #6c757d; }
+        .violation { background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; padding: 1px 3px; border-radius: 3px;}
+        .item-allocation, .adjustment-step, .lpd-section, .variation-step { border-top: 1px dashed #aaa; margin-top: 10px; padding-top: 10px;}
+        .usage-summary, .lpd-section-title, .comparison-title { margin-top: 15px; font-weight: bold; }
+        .lpd-item-list { margin-left: 20px; list-style-type: none; padding-left: 0;}
+        .lpd-item-list li { margin-bottom: 3px; }
+        .lpd-total { margin-top: 5px; font-style: italic; padding-left: 20px; }
+        #finalSummaryTable, #comparisonTable { width: 95%; border-collapse: collapse; margin-top: 15px; }
+        #finalSummaryTable th, #finalSummaryTable td, #comparisonTable th, #comparisonTable td { border: 1px solid #ddd; padding: 6px 8px; text-align: left; }
+        #finalSummaryTable th, #comparisonTable th { background-color: #e9ecef; font-weight: bold; }
+        #finalSummaryTable td:nth-child(n+2), #comparisonTable td:nth-child(n+2) { text-align: right; }
+        #finalSummaryTable tr:nth-child(even), #comparisonTable tr:nth-child(even) { background-color: #f8f9fa; }
+        .best-effort { background-color: #fff3cd !important; border-left: 4px solid #ffeeba; padding-left: 5px; font-weight: bold; }
+        .strategy-error-row { background-color: #f8d7da !important; border-left: 4px solid #f5c6cb; padding-left: 5px; }
+        #comparisonTable .strategy-name { cursor: pointer; text-decoration: underline; color: #0d6efd; text-align: left !important; }
+        #comparisonTable .strategy-name:hover { color: #0a58ca; }
+        .comparison-table-container.hide-errors .strategy-error-row { display: none; }
+        #toggleErrorsBtn { background-color: #6c757d; margin-left: 5px; }
+        #toggleErrorsBtn:hover { background-color: #5c636a; }
+
+    </style>
+</head>
+<body>
+
+    <!-- Sidebar Navigation (Same as v0.4) -->
+    <div id="sidebar">
+         <h3>Navigation</h3>
+         <ul>
+             <li><a href="#inputSection">Inputs</a></li>
+             <li><a href="#finderTitle">Combination Results</a></li>
+             <li><a href="#finderResultsLog">   • Combination Log</a></li>
+             <li><a href="#foundCombinationDisplay">   • Result Combination</a></li>
+             <li style="margin-top:10px; border-top: 1px solid #ccc; padding-top: 5px;"><a href="#allocatorTitle">Allocator Results</a></li>
+             <li><a href="#statusArea">   • Status</a></li>
+             <li><a href="#strategyComparison">   • Strategy Comparison</a></li>
+             <li><a href="#detailsTitle">   • Detailed Results</a></li>
+             <li><a href="#allocationResults">   • • Item Allocations</a></li>
+             <li><a href="#adjustmentLog">   • • Slot Fill Log</a></li>
+             <li><a href="#variationLog">   • • Variation Log</a></li>
+             <li><a href="#cumulativeUsage">   • • Cumulative Usage</a></li>
+             <li><a href="#lpdBreakdown">   • • Usage Breakdown</a></li>
+             <li><a href="#finalSummaryTableDiv">   • • Final Summary Table</a></li>
+         </ul>
+    </div>
+
+    <!-- Main Content Area -->
+    <h1 id="inputSection">LPD System (Selectable Method)</h1>
+    <p>Enter raw item data and parameters. Choose to either find the 'best' LPD combination (using Standard/GCD/Proportional logic) OR directly calculate a Proportional combination, then allocate items using the chosen combination.</p>
+
+    <!-- Input fields (Same) -->
+    <div class="input-group">
+        <label for="tableData">Table Data (Details + Amount, one per line):</label>
+        <textarea id="tableData" placeholder="Example:
+Item A	10000
+Item B	7500
+Item C	20000
+..."></textarea>
+    </div>
+    <div class="input-group">
+        <label for="maxSlots">Max Slots per LPD Instance:</label>
+        <input type="number" id="maxSlots" min="1" placeholder="e.g., 8" required>
+    </div>
+    <div class="input-group">
+        <label for="combinationSize">Target Number of Distinct LPDs in Combination:</label>
+        <input type="number" id="combinationSize" value="1" min="1">
+    </div>
+
+    <!-- CHANGE: Two buttons -->
+    <button onclick="initiateProcess('findBest')">Find Best LPD & Allocate</button>
+    <button onclick="initiateProcess('forceProportional')" class="secondary">Calculate Proportional & Allocate</button>
+
+    <!-- Output Areas -->
+
+    <!-- Section for Combination Results -->
+    <hr style="margin-top: 25px; border-top: 2px solid #007bff;">
+    <h2 id="finderTitle" class="output-section">Combination Results</h2>
+    <div id="finderResultsLog" class="output-section">Combination generation log will appear here...</div>
+    <div id="foundCombinationDisplay" class="output-section">Generated LPD Combination will appear here...</div>
+
+    <!-- Section for Allocator Results (Same structure) -->
+    <hr style="margin-top: 25px; border-top: 2px solid #28a745;">
+    <h2 id="allocatorTitle" class="output-section">Item Allocator Results</h2>
+    <div id="statusArea" class="output-section">Allocator status messages will appear here...</div>
+    <div id="strategyComparison" class="output-section">Strategy Comparison results will appear here...</div>
+    <hr style="margin-top: 25px; border-top: 1px solid #bbb;">
+    <h2 id="detailsTitle" class="output-section" style="margin-top: 5px; font-size: 1.1em;">Detailed Allocation Results</h2>
+    <div id="allocationResults" class="output-section">Detailed Item Allocation results will appear here...</div>
+    <div id="adjustmentLog" class="output-section">Slot Filling Adjustment Log will appear here...</div>
+    <div id="variationLog" class="output-section">Variation Adjustment Log will appear here...</div>
+    <div id="cumulativeUsage" class="output-section">Cumulative LPD usage will appear here...</div>
+    <div id="lpdBreakdown" class="output-section">LPD Usage Breakdown by Item Instance will appear here...</div>
+    <div id="finalSummaryTableDiv" class="output-section">Final Allocation Summary Table will appear here...</div>
+
+
+    <script>
+        // --- GLOBAL STORAGE (Same as v0.4) ---
+        let globalStrategyResults = [];
+        let globalOriginalItems = [];
+        let globalUniqueLpdValues = [];
+        let globalUserLpdCombinationWithDuplicates = [];
+        let globalLpdInstanceCounts = {};
+        let globalInitialTotalSlotsPerValue = {};
+        let globalMaxSlotsPerInstance = Infinity;
+        let globalMaxSlotsDisplay = "Unlimited";
+
+        // --- CONFIGURATION RULES (Same as v0.4) ---
+        const MIN_LPD_VALUE = 2000;
+        const OBLIGATORY_RANGE = 500;
+        const TARGET_RANGE_BELOW = 500;
+        const TARGET_RANGE_ABOVE = 1000;
+        const TARGET_STEP = 500;
+        const PROPORTIONAL_ROUNDING_STEP = 50;
+        const MIN_LPD_VALUE_ALLOC = 0;
+        const VARIATION_LIMIT_PASS_3 = 0.25;
+        const REPROCESS_VARIATION_LIMIT = 0.30;
+
+        // --- HELPER FUNCTIONS (Same as v0.4) ---
+        function gcd(a, b) { a = Math.abs(a); b = Math.abs(b); if (b === 0) return a; return gcd(b, a % b); }
+        function arrayGcd(numbers) { if (!numbers || numbers.length === 0) return 0; if (numbers.length === 1) return Math.abs(numbers[0]); let result = Math.abs(numbers[0]); for (let i = 1; i < numbers.length; i++) { result = gcd(result, numbers[i]); if (result === 1) return 1; } return result; }
+        function findSumCombinationRecursive(lpdValueObjectsToSearch, target, k, startIndex, currentCombinationValues) { /* ... same ... */
+            if (currentCombinationValues.length === k) {
+                const currentSum = currentCombinationValues.reduce((sum, item) => sum + item, 0);
+                if (Math.abs(currentSum - target) < 0.01) { return [...currentCombinationValues]; }
+                return null;
+            }
+             if (startIndex >= lpdValueObjectsToSearch.length ||
+                currentCombinationValues.length > k ||
+                (k > 0 && lpdValueObjectsToSearch.length - startIndex < k - currentCombinationValues.length)) { return null; }
+            if (k === 0) return null;
+            for (let i = startIndex; i < lpdValueObjectsToSearch.length; i++) {
+                const currentLpdValue = lpdValueObjectsToSearch[i].value;
+                if (!currentCombinationValues.includes(currentLpdValue)) {
+                    currentCombinationValues.push(currentLpdValue);
+                    const result = findSumCombinationRecursive(lpdValueObjectsToSearch, target, k, i + 1, currentCombinationValues);
+                    if (result) { return result; }
+                    currentCombinationValues.pop();
+                }
+            }
+            return null;
+         }
+        function getFrequencyScore(combination, lpdFrequencies) { /* ... same ... */
+             let score = 0; for (const lpdValue of combination) { score += (lpdFrequencies[lpdValue] || 0); } return score;
+        }
+        function roundToNearest(value, multiple) { /* ... same ... */
+             if (multiple <= 0) return Math.round(value); return Math.round(value / multiple) * multiple;
+        }
+        function findClosestSumWithRepetitionAndSlots(uniqueLpdValuesAvailable, target, remainingSlotsMap) { /* ... same ... */
+            if (!uniqueLpdValuesAvailable || uniqueLpdValuesAvailable.length === 0) { return { sum: 0, difference: 0 - target, combination: [], error: "No LPDs provided for allocation" }; }
+            if (target < 0) { return { sum: 0, difference: 0 - target, combination: [], error: "Target amount cannot be negative" }; }
+            const validLpdsWithSlots = uniqueLpdValuesAvailable.filter(lpd => lpd > 0 && remainingSlotsMap.hasOwnProperty(lpd) && remainingSlotsMap[lpd] > 0).sort((a, b) => a - b);
+            if (validLpdsWithSlots.length === 0) { return { sum: 0, difference: 0 - target, combination: [], error: "LPD list empty or no LPDs have remaining slots" }; }
+            const smallestLpd = validLpdsWithSlots[0];
+            const maxSum = Math.max(target, 0) + smallestLpd;
+            const dp = new Array(maxSum + 1).fill(null);
+            dp[0] = { count: 0, usage: {}, lastLpd: null };
+            for (let i = 1; i <= maxSum; i++) {
+                let bestStateForI = null;
+                for (const lpd of validLpdsWithSlots) {
+                    const prevSum = i - lpd;
+                    if (prevSum >= 0 && dp[prevSum] !== null) {
+                        const prevState = dp[prevSum];
+                        const currentLpdUsageInThisPath = (prevState.usage[lpd] || 0) + 1;
+                        const slotsAvailable = remainingSlotsMap[lpd];
+                         if (slotsAvailable === Infinity || currentLpdUsageInThisPath <= slotsAvailable) {
+                            const newTotalCount = prevState.count + 1;
+                            if (bestStateForI === null || newTotalCount < bestStateForI.count) {
+                                const newUsage = { ...prevState.usage }; newUsage[lpd] = currentLpdUsageInThisPath;
+                                bestStateForI = { count: newTotalCount, usage: newUsage, lastLpd: lpd };
+                            }
+                        }
+                    }
+                }
+                dp[i] = bestStateForI;
+            }
+            let minAbsDiff = Infinity; let closestSum = -1; let bestReachableState = null;
+            for (let i = target; i >= 0; i--) { if (dp[i] !== null) { const diff = Math.abs(target - i); if (diff < minAbsDiff || (diff === minAbsDiff && dp[i].count < bestReachableState.count)) { minAbsDiff = diff; closestSum = i; bestReachableState = dp[i]; } if (diff > minAbsDiff && closestSum !== -1) break; } }
+            for (let i = target + 1; i <= maxSum; i++) { if (dp[i] !== null) { const diff = Math.abs(i - target); if (diff < minAbsDiff || (diff === minAbsDiff && dp[i].count < bestReachableState.count)) { minAbsDiff = diff; closestSum = i; bestReachableState = dp[i]; } if (diff >= minAbsDiff && closestSum !== -1) break; } }
+             if (closestSum === -1) { if (target === 0 && dp[0] !== null) { closestSum = 0; bestReachableState = dp[0]; } else { return { sum: 0, difference: 0 - target, combination: [], error: "Could not reach target sum or close value" }; } }
+            const combination = []; let currentSum = closestSum; let currentState = bestReachableState; let safetyCounter = 0; const maxLoops = (currentState?.count || 0) + validLpdsWithSlots.length + 100;
+            while (currentSum > 0 && currentState?.lastLpd && safetyCounter < maxLoops) { const usedLpd = currentState.lastLpd; combination.push(usedLpd); const prevSum = currentSum - usedLpd; if (prevSum >= 0 && dp[prevSum] !== null) { currentState = dp[prevSum]; currentSum = prevSum; } else { console.error(`DP Backtracking Error: State missing for sum ${prevSum}`); return { sum: closestSum, difference: closestSum - target, combination: combination.sort((a, b) => a - b), error: `Backtracking error: State missing for sum ${prevSum}` }; } safetyCounter++; }
+             if (safetyCounter >= maxLoops) { console.error("DP Backtracking safety limit reached."); return { sum: closestSum, difference: closestSum - target, combination: combination.sort((a, b) => a - b), error: "Backtracking safety limit reached" }; }
+             if (currentSum !== 0 && closestSum !== 0) { console.error(`DP Backtracking incomplete (final sum ${currentSum})`); return { sum: closestSum, difference: closestSum - target, combination: combination.sort((a, b) => a - b), error: `Backtracking incomplete (final sum ${currentSum})` }; }
+             const reconstructedSum = combination.reduce((a, b) => a + b, 0); if (reconstructedSum !== closestSum) { console.error(`DP Reconstruction mismatch: ${reconstructedSum} != ${closestSum}`); return { sum: closestSum, difference: closestSum - target, combination: combination.sort((a, b) => a - b), error: `Reconstruction mismatch (${reconstructedSum} != ${closestSum})` }; }
+             const finalUsageCheck = {}; for(const lpd of combination) { finalUsageCheck[lpd] = (finalUsageCheck[lpd] || 0) + 1; if (remainingSlotsMap[lpd] !== Infinity && finalUsageCheck[lpd] > remainingSlotsMap[lpd]) { console.error(`Slot limit violated for LPD ${lpd} check (${finalUsageCheck[lpd]} > ${remainingSlotsMap[lpd]})`); return { sum: closestSum, difference: closestSum - target, combination: combination.sort((a, b) => a - b), error: `Slot limit violated for LPD ${lpd} final check` }; } }
+             return { sum: closestSum, difference: closestSum - target, combination: combination.sort((a, b) => a - b) };
+        }
+        function calculateMaxVariation(items, allocations) { /* ... same ... */
+            let maxAbsPercentage = 0; if (!items || !allocations || items.length !== allocations.length) return Infinity;
+            for (let i = 0; i < items.length; i++) { const item = items[i]; const alloc = allocations[i]; if (!alloc || alloc.error || alloc.difference === undefined) continue; const targetAmount = item.amount; const difference = alloc.difference; let currentAbsPercentage = 0; if (targetAmount > 0) { currentAbsPercentage = Math.abs(difference / targetAmount); } else if (alloc.sum !== 0) { currentAbsPercentage = Infinity; } if (currentAbsPercentage > maxAbsPercentage) { maxAbsPercentage = currentAbsPercentage; } }
+            return maxAbsPercentage;
+         }
+        function calculateAverageVariation(items, allocations) { /* ... same ... */
+            let totalPercentageSum = 0; let validItemCount = 0; if (!items || !allocations || items.length !== allocations.length) return 0;
+            for (let i = 0; i < items.length; i++) { const item = items[i]; const alloc = allocations[i]; if (alloc && !alloc.error && alloc.difference !== undefined && item.amount > 0) { const absPercentage = Math.abs(alloc.difference / item.amount); totalPercentageSum += absPercentage; validItemCount++; } }
+            return validItemCount > 0 ? totalPercentageSum / validItemCount : 0;
+        }
+
+        // --- COMBINATION FINDER FUNCTION (findBestLpdCombination - Remains the same as v0.4) ---
+        // Tries Standard -> GCD Fallback -> Proportional Fallback
+        function findBestLpdCombination(parsedItemsData, maxSlotsForTargetCalc, requestedCombinationSize) {
+             // ... (Exactly the same logic as in the previous version v0.4) ...
+             // Returns { combination: [], log: "", status: "OK"/"Error" }
+             const functionLog = []; let foundCombination = null; let finderStatus = "OK";
+             // 1. Basic Validation...
+             if (!parsedItemsData || parsedItemsData.length === 0) { return { combination: null, log: '<span class="error">Finder Error: No parsed item data.</span>', status: "Error" }; }
+             if (isNaN(maxSlotsForTargetCalc) || maxSlotsForTargetCalc <= 0) { return { combination: null, log: '<span class="error">Finder Error: Invalid Max Slots.</span>', status: "Error" }; }
+             if (isNaN(requestedCombinationSize) || requestedCombinationSize < 1) { return { combination: null, log: `<span class="error">Finder Error: Invalid Combo Size (>= 1).</span>`, status: "Error" }; }
+             // 2. Process Data...
+             const lpdFrequencies = {}; const validRawAmounts = []; let minAmountFound = Infinity; let sumAmounts = 0;
+             parsedItemsData.forEach(item => { const amount = item.amount; validRawAmounts.push(amount); sumAmounts += amount; if (amount < minAmountFound) minAmountFound = amount; const lpd = Math.round(amount / 2); if (lpd >= MIN_LPD_VALUE) { lpdFrequencies[lpd] = (lpdFrequencies[lpd] || 0) + 1; } });
+             if (validRawAmounts.length === 0) { return { combination: null, log: `<span class="error">Finder Error: No valid amounts.</span>`, status: "Error"}; }
+             if (sumAmounts === 0 && validRawAmounts.some(a => a !== 0)) { functionLog.push(`<span class="warning">Finder Warning: Sum 0 despite non-zero items.</span>`); }
+             else if (sumAmounts === 0) { functionLog.push(`Finder Info: Total sum 0.`); }
+             // 3. Prepare LPD List & Initial Log...
+             const uniqueValidLpdListWithFreq = Object.entries(lpdFrequencies).map(([lpd, freq]) => ({ value: parseInt(lpd), frequency: freq })).sort((a, b) => b.frequency - a.frequency || b.value - b.value);
+             functionLog.push(`--- Combination Finder Log ('Best' Method) ---`);
+             functionLog.push(`Min Raw Amount: ${minAmountFound === Infinity ? 'N/A' : minAmountFound}, Total Sum: ${sumAmounts}`);
+             functionLog.push(`Max Slots (Target): ${maxSlotsForTargetCalc}, Req. Combo Size: ${requestedCombinationSize}`);
+             functionLog.push(`Unique Valid LPDs (>=${MIN_LPD_VALUE}): ${uniqueValidLpdListWithFreq.length}`);
+             functionLog.push(`LPDs (Sorted Freq/Value): ${uniqueValidLpdListWithFreq.map(l => `${l.value}(${l.frequency})`).join(', ')}`);
+             // 4. Obligatory Candidates...
+             let minLpdValueFound = Infinity; uniqueValidLpdListWithFreq.forEach(lpdObj => { if (lpdObj.value < minLpdValueFound) minLpdValueFound = lpdObj.value; });
+             functionLog.push(`Min Valid LPD: ${minLpdValueFound === Infinity ? 'None' : minLpdValueFound}`);
+             const obligatoryCandidates = minLpdValueFound === Infinity ? [] : uniqueValidLpdListWithFreq.filter(lpdObj => Math.abs(lpdObj.value - minLpdValueFound) <= OBLIGATORY_RANGE).sort((a, b) => a.value - b.value);
+             functionLog.push(`Candidates near Min (+/- ${OBLIGATORY_RANGE}): ${obligatoryCandidates.length} [${obligatoryCandidates.map(c=>c.value).join(', ')}]`);
+             // 5. Decide Strategy...
+              if (obligatoryCandidates.length === 0 && requestedCombinationSize > 1) { /* --- GCD FALLBACK --- */
+                 functionLog.push(`<span class="fallback-gcd">ALERT: No LPDs near min. Using GCD Fallback.</span>`);
+                 let fallbackLog = [`<div class="fallback-section">--- GCD Fallback Calculation ---`];
+                 const baseTargetAmount = sumAmounts / maxSlotsForTargetCalc; fallbackLog.push(`Base Target Amount: ${baseTargetAmount.toFixed(2)}`);
+                 if (validRawAmounts.length < 1) { fallbackLog.push(`<span class="error">Error: No valid amounts for GCD.</span>`); finderStatus = "Error"; }
+                 else { const gcdAmounts = arrayGcd(validRawAmounts); fallbackLog.push(`GCD of amounts: ${gcdAmounts}`);
+                     if (gcdAmounts <= 0) { fallbackLog.push(`<span class="error">Error: GCD <= 0 (${gcdAmounts}).</span>`); finderStatus = "Error"; }
+                     else { const fallbackTarget = baseTargetAmount === 0 ? 0 : roundToNearest(baseTargetAmount, gcdAmounts); fallbackLog.push(`Fallback Target (GCD multiple): ${fallbackTarget}`);
+                         if (fallbackTarget < 0) { fallbackLog.push(`<span class="error">Error: Fallback Target < 0.</span>`); finderStatus = "Error"; }
+                         else { const fallbackK = fallbackTarget === 0 ? 0 : Math.round(fallbackTarget / gcdAmounts);
+                             if (fallbackK < 0) { fallbackLog.push(`<span class="error">Error: GCD units < 0.</span>`); finderStatus = "Error"; }
+                             else { fallbackLog.push(`GCD units needed: ${fallbackK}`); foundCombination = fallbackK > 0 ? Array(fallbackK).fill(gcdAmounts) : []; fallbackLog.push(`<span class="highlight fallback-gcd">GCD Fallback Result: [${foundCombination.join(', ')}]</span> (Size: ${fallbackK})`); }
+                         }
+                     }
+                 }
+                 functionLog.push(fallbackLog.join('\n') + `</div>`);
+              } else { /* --- STANDARD / PROPORTIONAL FALLBACK --- */
+                 let standardSearchAttempted = false; let overallBestCombination = null; let overallBestFrequencyScore = -1; let overallBestTargetSum = null;
+                 if (obligatoryCandidates.length > 0) {
+                     standardSearchAttempted = true; functionLog.push(`<span class="info">Standard strategy selected.</span>`);
+                     const baseTargetLPD = sumAmounts / maxSlotsForTargetCalc; const lowerBound = baseTargetLPD - TARGET_RANGE_BELOW; const upperBound = baseTargetLPD + TARGET_RANGE_ABOVE; const targetsToTest = []; const firstMultiple = Math.ceil(lowerBound / TARGET_STEP) * TARGET_STEP; const lastMultiple = Math.floor(upperBound / TARGET_STEP) * TARGET_STEP; for (let target = firstMultiple; target <= lastMultiple; target += TARGET_STEP) { if (target > 0 || (target === 0 && baseTargetLPD === 0)) targetsToTest.push(target); }
+                     functionLog.push(`Base Target LPD: ${baseTargetLPD.toFixed(2)}, Range [${lowerBound.toFixed(2)}, ${upperBound.toFixed(2)}]`);
+                     if (targetsToTest.length === 0) { functionLog.push(`<span class="warning">Warning: No target multiples in range. Trying Proportional.</span>`); }
+                     else { functionLog.push(`Target Sums to Test: [${targetsToTest.join(', ')}]`); const neededOtherLpds = requestedCombinationSize - 1; functionLog.push(`--- Combination Search (Standard Method, Need ${neededOtherLpds} others) ---`);
+                         for (const currentTargetSum of targetsToTest) { functionLog.push(`<div class="target-section">--- Testing Target Sum: ${currentTargetSum} ---`); let foundCombinationForThisTarget = false;
+                             for (const currentObligatoryCandidate of obligatoryCandidates) { const currentObligatoryLpdValue = currentObligatoryCandidate.value; functionLog.push(`<div class="candidate-section">=== Trying Obligatory LPD: ${currentObligatoryLpdValue} ===`); const searchLpdList = uniqueValidLpdListWithFreq.filter(lpdObj => lpdObj.value !== currentObligatoryLpdValue);
+                                  if (neededOtherLpds > 0 && searchLpdList.length < neededOtherLpds) { functionLog.push(`   Skipping: Not enough others (${searchLpdList.length}) for size ${requestedCombinationSize}.`); functionLog.push(`</div>`); continue; }
+                                  const targetForRecursion = currentTargetSum - currentObligatoryLpdValue; functionLog.push(`   Target for remaining ${neededOtherLpds}: ${targetForRecursion.toFixed(2)}`);
+                                  if (neededOtherLpds === 0) { if (Math.abs(targetForRecursion) < 0.01) { const currentFullCombination = [currentObligatoryLpdValue]; const currentFrequencyScore = getFrequencyScore(currentFullCombination, lpdFrequencies); functionLog.push(`   <span class="success">Found Exact Sum (Size 1): [${currentFullCombination.join(', ')}] (Sum: ${currentTargetSum}, Freq: ${currentFrequencyScore})</span>`); foundCombinationForThisTarget = true; if (overallBestCombination === null || currentFrequencyScore > overallBestFrequencyScore || (currentFrequencyScore === overallBestFrequencyScore && currentTargetSum < overallBestTargetSum)) { functionLog.push(`   <span class="info">   ** New OVERALL Best Found **</span>`); overallBestCombination = currentFullCombination; overallBestFrequencyScore = currentFrequencyScore; overallBestTargetSum = currentTargetSum; } } else { functionLog.push(`   -> Target (${currentTargetSum}) != LPD (${currentObligatoryLpdValue}).`); } }
+                                  else if (targetForRecursion >= -0.01) { const adjustedTargetForRecursion = Math.max(0, targetForRecursion); let foundKMinus1Combination = findSumCombinationRecursive(searchLpdList, adjustedTargetForRecursion, neededOtherLpds, 0, []);
+                                     if (foundKMinus1Combination !== null) { const currentFullCombination = [...foundKMinus1Combination, currentObligatoryLpdValue].sort((a, b) => a - b); const currentFrequencyScore = getFrequencyScore(currentFullCombination, lpdFrequencies); functionLog.push(`   <span class="success">Found Combo: [${currentFullCombination.join(', ')}] (Sum: ${currentTargetSum}, Freq: ${currentFrequencyScore})</span>`); foundCombinationForThisTarget = true; if (overallBestCombination === null || currentFrequencyScore > overallBestFrequencyScore || (currentFrequencyScore === overallBestFrequencyScore && currentTargetSum < overallBestTargetSum)) { functionLog.push(`   <span class="info">   ** New OVERALL Best Found **</span>`); overallBestCombination = currentFullCombination; overallBestFrequencyScore = currentFrequencyScore; overallBestTargetSum = currentTargetSum; } } else { functionLog.push(`   -> No combo of ${neededOtherLpds} found for ${adjustedTargetForRecursion.toFixed(2)}.`); }
+                                  } else { functionLog.push(`   -> Remaining target (${targetForRecursion.toFixed(2)}) negative.`); } functionLog.push(`</div>`);
+                              } if (!foundCombinationForThisTarget) { functionLog.push(`   <span class="info">No combinations found for target ${currentTargetSum}.</span>`); } functionLog.push(`</div>`);
+                         }
+                     }
+                 }
+                 if (overallBestCombination !== null) { /* --- Standard Method SUCCESS --- */
+                      functionLog.push(`--- Standard Method Result ---`); functionLog.push(`<span class="highlight">Best Found: [${overallBestCombination.join(', ')}]</span>`); functionLog.push(`(Target Sum: ${overallBestTargetSum}, Freq Score: ${overallBestFrequencyScore})`); foundCombination = overallBestCombination;
+                 } else { /* --- PROPORTIONAL FALLBACK --- */
+                     if (standardSearchAttempted) { functionLog.push(`<span class="error">Standard Method Failed. Trying Proportional.</span>`); }
+                     else if (requestedCombinationSize > 1) { functionLog.push(`<span class="info">Standard Skipped (No candidates near min). Trying Proportional.</span>`); }
+                     functionLog.push(`<span class="fallback-prop">ALERT: Using Proportional Fallback (Round to ${PROPORTIONAL_ROUNDING_STEP}).</span>`);
+                     let propFallbackLog = [`<div class="proportional-fallback-section">--- Proportional Fallback Calculation ---`];
+                     const averageValuePerSlot = (maxSlotsForTargetCalc > 0 && sumAmounts > 0) ? (sumAmounts / maxSlotsForTargetCalc) : 0; propFallbackLog.push(`Average Value Per Slot: ${averageValuePerSlot.toFixed(2)}`);
+                     if (requestedCombinationSize === 1) { propFallbackLog.push(`Combo size 1: Using rounded average.`); const roundedAverage = roundToNearest(averageValuePerSlot, PROPORTIONAL_ROUNDING_STEP); if (roundedAverage <= 0 && averageValuePerSlot > 0) { propFallbackLog.push(`<span class="error">Error: Rounded avg <= 0.</span>`); finderStatus = "Error"; } else if (roundedAverage <= 0) { propFallbackLog.push(`Info: Rounded avg <= 0. Using empty combo.`); foundCombination = []; } else { foundCombination = [roundedAverage]; } if (foundCombination !== null) propFallbackLog.push(`Calculated Combo (Size 1): [${foundCombination.join(', ')}]`);
+                     } else { if (uniqueValidLpdListWithFreq.length < requestedCombinationSize) { propFallbackLog.push(`<span class="error">Error: Not enough unique LPDs (${uniqueValidLpdListWithFreq.length}) for size ${requestedCombinationSize}.</span>`); finderStatus = "Error"; }
+                         else { const selectedTopLpds = uniqueValidLpdListWithFreq.slice(0, requestedCombinationSize); const selectedLpdValues = selectedTopLpds.map(lpd => lpd.value); propFallbackLog.push(`Top ${requestedCombinationSize} LPDs: [${selectedLpdValues.join(', ')}]`); const totalLpdValueMass = selectedLpdValues.reduce((sum, val) => sum + val, 0); propFallbackLog.push(`Sum of LPDs (Base): ${totalLpdValueMass}`);
+                             if (totalLpdValueMass <= 0) { propFallbackLog.push(`<span class="error">Error: Sum of LPDs <= 0.</span>`); finderStatus = "Error"; }
+                             else if (averageValuePerSlot <= 0) { propFallbackLog.push(`Info: Avg value <= 0. Result empty.`); foundCombination = []; }
+                             else { propFallbackLog.push(`Distributing Avg Value (${averageValuePerSlot.toFixed(2)})...`); const proportionalCombination = selectedLpdValues.map(lpdVal => roundToNearest(averageValuePerSlot * (lpdVal / totalLpdValueMass), PROPORTIONAL_ROUNDING_STEP)); const finalProportionalCombination = proportionalCombination.filter(v => v > 0);
+                                 if (finalProportionalCombination.length === 0) { propFallbackLog.push(`<span class="warning">Warning: Proportional resulted in no positive LPDs. Using empty.</span>`); foundCombination = []; }
+                                 else if (finalProportionalCombination.length < requestedCombinationSize) { propFallbackLog.push(`<span class="warning">Warning: Proportional resulted in only ${finalProportionalCombination.length} positive LPDs (req ${requestedCombinationSize}). Using positive values.</span>`); foundCombination = finalProportionalCombination.sort((a,b) => a - b); }
+                                 else { foundCombination = finalProportionalCombination.sort((a,b) => a - b).slice(0, requestedCombinationSize); }
+                                 if (foundCombination !== null) { const sumOfProp = foundCombination.reduce((sum, val) => sum + val, 0); propFallbackLog.push(`Calculated Proportional Combo (Rounded, >0): [${foundCombination.join(', ')}]`); propFallbackLog.push(`Sum: ${sumOfProp} (vs Avg Slot: ${averageValuePerSlot.toFixed(2)})`); }
+                             }
+                         }
+                     } functionLog.push(propFallbackLog.join('\n') + `</div>`);
+                 }
+              }
+             return { combination: foundCombination, log: functionLog.join('\n'), status: finderStatus };
+        }
+
+
+        // --- NEW: DIRECT PROPORTIONAL COMBINATION FUNCTION ---
+        // Calculates combination *only* using Proportional method with Min LPD rule
+        function calculateDirectProportionalCombination(parsedItemsData, maxSlotsForTargetCalc, requestedCombinationSize) {
+            const functionLog = [];
+            let foundCombination = null;
+            let finderStatus = "OK";
+
+            // 1. Basic Validation (Similar to findBest...)
+            if (!parsedItemsData || parsedItemsData.length === 0) { return { combination: null, log: '<span class="error">Proportional Calc Error: No parsed item data.</span>', status: "Error" }; }
+            if (isNaN(maxSlotsForTargetCalc) || maxSlotsForTargetCalc <= 0) { return { combination: null, log: '<span class="error">Proportional Calc Error: Invalid Max Slots.</span>', status: "Error" }; }
+            if (isNaN(requestedCombinationSize) || requestedCombinationSize < 1) { return { combination: null, log: `<span class="error">Proportional Calc Error: Invalid Combo Size (>= 1).</span>`, status: "Error" }; }
+
+            // 2. Process Data & Calculate Frequencies (Similar to findBest...)
+            const lpdFrequencies = {}; const validRawAmounts = []; const allValidLpds = [];
+            let sumAmounts = 0; let minAmountFound = Infinity;
+            parsedItemsData.forEach(item => { const amount = item.amount; validRawAmounts.push(amount); sumAmounts += amount; if (amount < minAmountFound) minAmountFound = amount; const lpd = Math.round(amount / 2); if (lpd >= MIN_LPD_VALUE) { lpdFrequencies[lpd] = (lpdFrequencies[lpd] || 0) + 1; allValidLpds.push(lpd); } });
+            if (validRawAmounts.length === 0) { return { combination: null, log: `<span class="error">Proportional Calc Error: No valid amounts.</span>`, status: "Error"}; }
+             if (sumAmounts === 0 && validRawAmounts.some(a => a !== 0)) { functionLog.push(`<span class="warning">Proportional Calc Warning: Sum 0 despite non-zero items.</span>`); }
+             else if (sumAmounts === 0) { functionLog.push(`Proportional Calc Info: Total sum 0.`); }
+
+            // 3. Prepare Unique LPD List & Min LPD Rule Data (Similar to v0.3.7 logic)
+            const uniqueValidLpdListWithFreq = Object.entries(lpdFrequencies).map(([lpd, freq]) => ({ value: parseInt(lpd), frequency: freq })).sort((a, b) => b.frequency - a.frequency || b.value - b.value);
+            let minLpdValueFound = Infinity; if (allValidLpds.length > 0) { minLpdValueFound = Math.min(...allValidLpds); }
+            const nearMinLpds = minLpdValueFound === Infinity ? [] : uniqueValidLpdListWithFreq.filter(lpdObj => Math.abs(lpdObj.value - minLpdValueFound) <= OBLIGATORY_RANGE).sort((a, b) => b.frequency - a.frequency || b.value - a.value);
+
+            functionLog.push(`--- Direct Proportional Calculation Log ---`);
+            functionLog.push(`Min Raw Amount: ${minAmountFound === Infinity ? 'N/A' : minAmountFound}, Total Sum: ${sumAmounts}`);
+            functionLog.push(`Max Slots (Target): ${maxSlotsForTargetCalc}, Req. Combo Size: ${requestedCombinationSize}`);
+            functionLog.push(`Unique Valid LPDs (>=${MIN_LPD_VALUE}): ${uniqueValidLpdListWithFreq.length}`);
+            functionLog.push(`LPDs (Sorted Freq/Value): ${uniqueValidLpdListWithFreq.map(l => `${l.value}(${l.frequency})`).join(', ')}`);
+            functionLog.push(`Min Valid LPD: ${minLpdValueFound === Infinity ? 'None' : minLpdValueFound}`);
+            functionLog.push(`Candidates near Min (+/- ${OBLIGATORY_RANGE}): ${nearMinLpds.length} [${nearMinLpds.map(c=>c.value + '(' + c.frequency + ')').join(', ')}]`);
+
+            // 4. Check if enough unique LPDs exist
+            if (uniqueValidLpdListWithFreq.length < requestedCombinationSize && requestedCombinationSize > 0) { // Allow size 0 if that's requested/possible
+                 functionLog.push(`<span class="error">Error: Not enough unique valid LPDs (${uniqueValidLpdListWithFreq.length}) available for requested size ${requestedCombinationSize}.</span>`);
+                 return { combination: null, log: functionLog.join('\n'), status: "Error" };
+             }
+
+            // 5. Determine LPDs for Calculation (Apply Min LPD Rule - logic from v0.3.7)
+            functionLog.push(`--- Selecting LPDs for Proportional Calculation ---`);
+            let selectionLog = [];
+            let finalSelectedLpdsForProportion = []; // Holds {value, frequency} objects
+
+            if (requestedCombinationSize === 1) {
+                selectionLog.push(`Combo size 1: Min LPD rule adjustment not applied to selection.`);
+                if (uniqueValidLpdListWithFreq.length > 0) { finalSelectedLpdsForProportion = [uniqueValidLpdListWithFreq[0]]; selectionLog.push(`(Using average value; Top LPD for reference: ${finalSelectedLpdsForProportion[0].value})`); }
+                else { selectionLog.push(`(No unique LPDs found).`); }
+            } else if (requestedCombinationSize > 1) { // Only apply rule if size > 1
+                const initialTopLpds = uniqueValidLpdListWithFreq.slice(0, requestedCombinationSize);
+                selectionLog.push(`Initial Top ${requestedCombinationSize} LPDs (by Freq/Value): [${initialTopLpds.map(l => `${l.value}(${l.frequency})`).join(', ')}]`);
+                const initialSelectionValues = initialTopLpds.map(lpd => lpd.value);
+                const meetsMinLpdRule = nearMinLpds.length === 0 || initialSelectionValues.some(val => nearMinLpds.some(nearLpd => nearLpd.value === val));
+
+                if (meetsMinLpdRule) {
+                    selectionLog.push(`<span class="info">Min LPD Rule Met: Initial selection includes LPD near min (or none exist).</span>`);
+                    finalSelectedLpdsForProportion = initialTopLpds;
+                } else {
+                    selectionLog.push(`<span class="warning">Min LPD Rule NOT Met: Attempting substitution.</span>`);
+                    const bestNearMinLpd = nearMinLpds[0]; // Highest freq near min
+                    selectionLog.push(`   - Best Candidate Near Min: ${bestNearMinLpd.value}(${bestNearMinLpd.frequency})`);
+                    let indexToReplace = -1; let minFreq = Infinity; let minValueAtMinFreq = Infinity;
+                    // Find lowest freq in initialTopLpds (that isn't itself a near-min LPD)
+                    for(let i = 0; i < initialTopLpds.length; i++) { const lpd = initialTopLpds[i]; if (nearMinLpds.some(near => near.value === lpd.value)) continue; if (lpd.frequency < minFreq) { minFreq = lpd.frequency; minValueAtMinFreq = lpd.value; indexToReplace = i; } else if (lpd.frequency === minFreq && lpd.value < minValueAtMinFreq) { minValueAtMinFreq = lpd.value; indexToReplace = i; } }
+                    if (indexToReplace !== -1) {
+                        const lpdToReplace = initialTopLpds[indexToReplace];
+                        selectionLog.push(`   - LPD to Replace (Lowest Freq): ${lpdToReplace.value}(${lpdToReplace.frequency})`);
+                        let adjustedSelectedTopLpds = [...initialTopLpds]; adjustedSelectedTopLpds[indexToReplace] = bestNearMinLpd;
+                        adjustedSelectedTopLpds.sort((a, b) => b.value - a.value); // Sort for display consistency
+                        finalSelectedLpdsForProportion = adjustedSelectedTopLpds;
+                        selectionLog.push(`<span class="info">   => Final LPDs for Calculation: [${finalSelectedLpdsForProportion.map(l => `${l.value}(${l.frequency})`).join(', ')}]</span>`);
+                    } else {
+                         selectionLog.push(`<span class="warning">   - Could not find suitable LPD to replace. Using initial selection.</span>`);
+                         finalSelectedLpdsForProportion = initialTopLpds; // Fallback
+                    }
+                }
+            } else { // requestedCombinationSize == 0
+                 selectionLog.push(`Requested combination size is 0. Result will be empty.`);
+                 finalSelectedLpdsForProportion = [];
+            }
+            functionLog.push(selectionLog.join('\n'));
+
+
+            // 6. Perform Proportional Calculation (Similar to fallback block)
+            functionLog.push(`<div class="proportional-direct-section">--- Proportional Calculation ---`);
+            let propCalcLog = [];
+            const averageValuePerSlot = (maxSlotsForTargetCalc > 0 && sumAmounts > 0) ? (sumAmounts / maxSlotsForTargetCalc) : 0;
+            propCalcLog.push(`Average Value Per Slot: ${averageValuePerSlot.toFixed(2)}`);
+
+            if (requestedCombinationSize === 1) {
+                propCalcLog.push(`Combo size 1: Using rounded average.`);
+                const roundedAverage = roundToNearest(averageValuePerSlot, PROPORTIONAL_ROUNDING_STEP);
+                 if (roundedAverage <= 0 && averageValuePerSlot > 0) { propCalcLog.push(`<span class="error">Error: Rounded avg <= 0.</span>`); finderStatus = "Error"; }
+                 else if (roundedAverage <= 0) { propCalcLog.push(`Info: Rounded avg <= 0. Using empty combo.`); foundCombination = []; }
+                 else { foundCombination = [roundedAverage]; }
+                 if (foundCombination !== null) propCalcLog.push(`Calculated Combo (Size 1): [${foundCombination.join(', ')}]`);
+            } else if (requestedCombinationSize > 1) { // Use the LPDs selected in step 5
+                const selectedLpdValues = finalSelectedLpdsForProportion.map(lpd => lpd.value);
+                propCalcLog.push(`Using LPD Values for Proportions: [${selectedLpdValues.join(', ')}] (From selection step)`);
+                const totalLpdValueMass = selectedLpdValues.reduce((sum, val) => sum + val, 0);
+                propCalcLog.push(`Sum of LPDs (Base): ${totalLpdValueMass}`);
+                if (totalLpdValueMass <= 0) { propCalcLog.push(`<span class="error">Error: Sum of selected LPDs <= 0.</span>`); finderStatus = "Error"; }
+                else if (averageValuePerSlot <= 0) { propCalcLog.push(`Info: Avg value <= 0. Result empty.`); foundCombination = []; }
+                else {
+                    propCalcLog.push(`Distributing Avg Value (${averageValuePerSlot.toFixed(2)})...`);
+                    const proportionalCombination = selectedLpdValues.map(lpdVal => roundToNearest(averageValuePerSlot * (lpdVal / totalLpdValueMass), PROPORTIONAL_ROUNDING_STEP));
+                    const finalProportionalCombination = proportionalCombination.filter(v => v > 0);
+                    if (finalProportionalCombination.length === 0) { propCalcLog.push(`<span class="warning">Warning: Proportional resulted in no positive LPDs. Using empty.</span>`); foundCombination = []; }
+                    else if (finalProportionalCombination.length < requestedCombinationSize) { propCalcLog.push(`<span class="warning">Warning: Only ${finalProportionalCombination.length} positive LPDs resulted (req ${requestedCombinationSize}). Using positive values.</span>`); foundCombination = finalProportionalCombination.sort((a,b) => a - b); }
+                    else { foundCombination = finalProportionalCombination.sort((a,b) => a - b).slice(0, requestedCombinationSize); }
+                    if (foundCombination !== null) { const sumOfProp = foundCombination.reduce((sum, val) => sum + val, 0); propCalcLog.push(`Calculated Proportional Combo (Rounded, >0): [${foundCombination.join(', ')}]`); propCalcLog.push(`Sum: ${sumOfProp} (vs Avg Slot: ${averageValuePerSlot.toFixed(2)})`); }
+                }
+            } else { // requestedCombinationSize == 0
+                 propCalcLog.push(`Combo size 0 requested. Result empty.`);
+                 foundCombination = [];
+            }
+            functionLog.push(propCalcLog.join('\n') + `</div>`);
+
+            return {
+                combination: foundCombination,
+                log: functionLog.join('\n'),
+                status: finderStatus
+            };
+        }
+
+
+        // --- ALLOCATOR CORE LOGIC (runAllocationProcess - Remains the same as v0.4) ---
+        function runAllocationProcess(itemsToProcess, userLpdCombinationWithDuplicates, maxSlotsPerInstance) {
+            // ... (Exactly the same logic as in the previous version v0.4) ...
+            // Returns { itemAllocations: [], cumulativeUsage: {}, remainingSlots: {}, logs: {adjustment:"", variation:""} }
+             const logs = { adjustment: '', variation: '' }; const maxSlotsIsFinite = maxSlotsPerInstance !== Infinity; const maxSlotsDisplayLocal = maxSlotsIsFinite ? maxSlotsPerInstance : "Unlimited";
+             const uniqueLpdValuesLocal = [...new Set(userLpdCombinationWithDuplicates)].sort((a, b) => a - b); const lpdInstanceCountsLocal = {}; userLpdCombinationWithDuplicates.forEach(lpd => { lpdInstanceCountsLocal[lpd] = (lpdInstanceCountsLocal[lpd] || 0) + 1; }); const initialTotalSlotsPerValueLocal = {}; uniqueLpdValuesLocal.forEach(lpd => { const instances = lpdInstanceCountsLocal[lpd] || 0; initialTotalSlotsPerValueLocal[lpd] = maxSlotsIsFinite ? (instances * maxSlotsPerInstance) : Infinity; });
+             const currentRemainingSlots = { ...initialTotalSlotsPerValueLocal }; const currentItemAllocations = new Array(itemsToProcess.length).fill(null).map(() => ({ sum: 0, difference: 0, combination: [], finalUsageCounts: {}, error: null }));
+             logs.adjustment += `--- Pass 1: Initial DP Allocation (Max Slots/Instance: ${maxSlotsDisplayLocal}) ---\n`;
+             itemsToProcess.forEach((item, i) => { logs.adjustment += `Item ${item.index + 1} ('${item.details}', Target: ${item.amount}): `; const allocation = findClosestSumWithRepetitionAndSlots([...uniqueLpdValuesLocal], item.amount, currentRemainingSlots); currentItemAllocations[i] = { sum: allocation.sum, difference: allocation.difference, combination: allocation.combination ? [...allocation.combination] : [], finalUsageCounts: {}, error: allocation.error || null }; if (allocation.error) { logs.adjustment += `<span class="error">Error: ${allocation.error}</span>\n`; } else { logs.adjustment += `Found Sum ${allocation.sum} (Diff: ${allocation.difference}), Combo: [${allocation.combination.join(', ')}]\n`; if (allocation.combination && allocation.combination.length > 0) { allocation.combination.forEach(lpd => { if (currentRemainingSlots.hasOwnProperty(lpd)) { if (currentRemainingSlots[lpd] > 0) { if (maxSlotsIsFinite) { currentRemainingSlots[lpd]--; } } else { console.warn(`Slot warn Pass 1: LPD ${lpd} used for Item ${item.details} when slots were 0.`); currentItemAllocations[i].error = (currentItemAllocations[i].error || "") + ` Warn: Used LPD ${lpd} beyond slots.`; } } else { console.error(`Logic Error Pass 1: LPD ${lpd} used but not in slot map.`); currentItemAllocations[i].error = (currentItemAllocations[i].error || "") + ` Crit Err: Used LPD ${lpd} not in map.`; } }); } } });
+             logs.adjustment += `Rem Slots After Pass 1: ${JSON.stringify(currentRemainingSlots)}\n`;
+             let adjustmentLogHTML = `--- Pass 2: Slot Filling (Max Slots/Instance: ${maxSlotsDisplayLocal}) ---`; if (maxSlotsIsFinite) { adjustmentLogHTML += `\nInitial Rem Slots Pass 2: ${JSON.stringify(currentRemainingSlots, null, 0)}`; let totalRemainingPass2 = Object.values(currentRemainingSlots).reduce((sum, count) => count === Infinity ? sum : sum + count, 0); adjustmentLogHTML += `\nTotal Finite Slots Rem: ${totalRemainingPass2}`; let adjustmentSafetyCounter = 0; const maxAdjustments = totalRemainingPass2 + itemsToProcess.length * uniqueLpdValuesLocal.length + 50; while (totalRemainingPass2 > 0 && adjustmentSafetyCounter < maxAdjustments) { adjustmentSafetyCounter++; let bestMove = { lpdToAdd: null, itemIndex: -1, minImpact: Infinity, currentAbsDiff: Infinity }; for (const lpd of uniqueLpdValuesLocal) { if (currentRemainingSlots[lpd] > 0) { for (let i = 0; i < currentItemAllocations.length; i++) { const currentAlloc = currentItemAllocations[i]; if (currentAlloc.error || currentAlloc.sum === undefined) continue; const originalAmount = itemsToProcess[i].amount; const currentSum = currentAlloc.sum; const currentAbsDifference = Math.abs(currentAlloc.difference); const newSum = currentSum + lpd; const newAbsDifference = Math.abs(newSum - originalAmount); const impact = newAbsDifference - currentAbsDifference; if (impact < bestMove.minImpact) { bestMove = { lpdToAdd: lpd, itemIndex: i, minImpact: impact, currentAbsDiff: currentAbsDifference }; } else if (impact === bestMove.minImpact && currentAbsDifference > bestMove.currentAbsDiff) { bestMove = { lpdToAdd: lpd, itemIndex: i, minImpact: impact, currentAbsDiff: currentAbsDifference }; } } } } if (bestMove.lpdToAdd !== null) { const lpd = bestMove.lpdToAdd; const itemIdx = bestMove.itemIndex; adjustmentLogHTML += `<div class="adjustment-step">Step ${adjustmentSafetyCounter}: Add LPD <span class="info">${lpd}</span> to Item ${itemsToProcess[itemIdx].index + 1} ('${itemsToProcess[itemIdx].details}') (Impact: ${bestMove.minImpact >= 0 ? '+' : ''}${bestMove.minImpact.toFixed(0)})`; currentItemAllocations[itemIdx].combination.push(lpd); currentItemAllocations[itemIdx].combination.sort((a, b) => a - b); currentItemAllocations[itemIdx].sum += lpd; currentItemAllocations[itemIdx].difference = currentItemAllocations[itemIdx].sum - itemsToProcess[itemIdx].amount; if (maxSlotsIsFinite) { currentRemainingSlots[lpd]--; totalRemainingPass2--; adjustmentLogHTML += `\n   -> New Sum: ${currentItemAllocations[itemIdx].sum}, Diff: ${currentItemAllocations[itemIdx].difference.toFixed(0)}, Rem Slots ${lpd}: ${currentRemainingSlots[lpd]}</div>`; } else { adjustmentLogHTML += `\n   -> New Sum: ${currentItemAllocations[itemIdx].sum}, Diff: ${currentItemAllocations[itemIdx].difference.toFixed(0)} (Slots Unlimited)</div>`; } } else { adjustmentLogHTML += `\n<span class="warning">Stopped Pass 2: No beneficial move. ${totalRemainingPass2} finite slots remain.</span>`; break; } } if (adjustmentSafetyCounter >= maxAdjustments) { adjustmentLogHTML += `\n<span class="error">Stopped Pass 2: Safety limit (${maxAdjustments}) reached.</span>`; } adjustmentLogHTML += `\nRem Slots After Pass 2: ${JSON.stringify(currentRemainingSlots)}`; } else { adjustmentLogHTML += `\n(Skipped: Max Slots Unlimited)`; } logs.adjustment = adjustmentLogHTML;
+             let variationLogHTML = `--- Pass 3: Variation Correction (Target: ±${(VARIATION_LIMIT_PASS_3 * 100).toFixed(0)}%) ---`; let madeVariationAdjustment = true; let variationLoopCounter = 0; const maxVariationLoops = itemsToProcess.length * uniqueLpdValuesLocal.length * 3 + 50; while (madeVariationAdjustment && variationLoopCounter < maxVariationLoops) { variationLoopCounter++; madeVariationAdjustment = false; let worstViolation = { index: -1, percentageDiff: 0, absDifference: 0 }; currentItemAllocations.forEach((alloc, i) => { if (alloc && !alloc.error && alloc.difference !== undefined) { const item = itemsToProcess[i]; const targetAmount = item.amount; let currentAbsPercentage = 0; const currentAbsDifference = Math.abs(alloc.difference); if (targetAmount > 0) { currentAbsPercentage = currentAbsDifference / targetAmount; } else if (alloc.sum !== 0) { currentAbsPercentage = Infinity; } if (currentAbsPercentage > VARIATION_LIMIT_PASS_3) { if (currentAbsPercentage > worstViolation.percentageDiff || (currentAbsPercentage === worstViolation.percentageDiff && currentAbsDifference > worstViolation.absDifference)) { worstViolation = { index: i, percentageDiff: currentAbsPercentage, absDifference: currentAbsDifference }; } } } }); if (worstViolation.index === -1) { variationLogHTML += `\nIter ${variationLoopCounter}: No items > ±${(VARIATION_LIMIT_PASS_3 * 100).toFixed(0)}%. Pass 3 complete.`; break; } const itemIdx = worstViolation.index; const currentAlloc = currentItemAllocations[itemIdx]; const originalAmount = itemsToProcess[itemIdx].amount; const isOverTarget = currentAlloc.difference > 0; variationLogHTML += `<div class="variation-step">Iter ${variationLoopCounter}: Fixing Item ${itemsToProcess[itemIdx].index + 1} ('${itemsToProcess[itemIdx].details}') - Diff: ${currentAlloc.difference.toFixed(0)} (${(worstViolation.percentageDiff * 100).toFixed(1)}%)`; let bestFix = { action: null, lpd: null, finalAbsDiff: Math.abs(currentAlloc.difference), finalPercDiff: worstViolation.percentageDiff }; const currentCombinationCopy = [...currentAlloc.combination]; for (const lpdToRemove of new Set(currentCombinationCopy)) { const newSum = currentAlloc.sum - lpdToRemove; const newSignedDiff = newSum - originalAmount; const newAbsDiff = Math.abs(newSignedDiff); let newPercentageDiff = Infinity; if (originalAmount > 0) { newPercentageDiff = newAbsDiff / originalAmount; } else if (newSum === 0) { newPercentageDiff = 0; } if (newPercentageDiff <= VARIATION_LIMIT_PASS_3) { if (newAbsDiff < bestFix.finalAbsDiff) { bestFix = { action: 'remove', lpd: lpdToRemove, finalAbsDiff: newAbsDiff, finalPercDiff: newPercentageDiff }; } } else if (bestFix.action === null && newAbsDiff < bestFix.finalAbsDiff) { bestFix = { action: 'remove', lpd: lpdToRemove, finalAbsDiff: newAbsDiff, finalPercDiff: newPercentageDiff }; } } for (const lpdToAdd of uniqueLpdValuesLocal) { if (maxSlotsIsFinite && currentRemainingSlots[lpdToAdd] <= 0) continue; const newSum = currentAlloc.sum + lpdToAdd; const newSignedDiff = newSum - originalAmount; const newAbsDiff = Math.abs(newSignedDiff); let newPercentageDiff = Infinity; if (originalAmount > 0) { newPercentageDiff = newAbsDiff / originalAmount; } else if (newSum === 0) { newPercentageDiff = 0; } if (newPercentageDiff <= VARIATION_LIMIT_PASS_3) { if (newAbsDiff < bestFix.finalAbsDiff) { bestFix = { action: 'add', lpd: lpdToAdd, finalAbsDiff: newAbsDiff, finalPercDiff: newPercentageDiff }; } } else if (bestFix.action === null && newAbsDiff < bestFix.finalAbsDiff) { bestFix = { action: 'add', lpd: lpdToAdd, finalAbsDiff: newAbsDiff, finalPercDiff: newPercentageDiff }; } } if (bestFix.action) { madeVariationAdjustment = true; const lpd = bestFix.lpd; variationLogHTML += ` -> Action: <span class="info">${bestFix.action.toUpperCase()} ${lpd}</span>`; if (bestFix.action === 'remove') { const indexToRemove = currentItemAllocations[itemIdx].combination.indexOf(lpd); if (indexToRemove > -1) { currentItemAllocations[itemIdx].combination.splice(indexToRemove, 1); currentItemAllocations[itemIdx].sum -= lpd; currentItemAllocations[itemIdx].difference -= lpd; if (maxSlotsIsFinite) { currentRemainingSlots[lpd]++; } } else { console.error(`VFix Error: remove ${lpd} not found in ${itemIdx}`); variationLogHTML += ` <span class="error">(Error!)</span>`; madeVariationAdjustment = false; } } else { currentItemAllocations[itemIdx].combination.push(lpd); currentItemAllocations[itemIdx].combination.sort((a, b) => a - b); currentItemAllocations[itemIdx].sum += lpd; currentItemAllocations[itemIdx].difference += lpd; if (maxSlotsIsFinite) { currentRemainingSlots[lpd]--; } } const finalPercDiffCheck = originalAmount > 0 ? Math.abs(currentItemAllocations[itemIdx].difference / originalAmount) : (currentItemAllocations[itemIdx].sum === 0 ? 0 : Infinity); variationLogHTML += ` -> New Diff: ${currentItemAllocations[itemIdx].difference.toFixed(0)} (${(finalPercDiffCheck * 100).toFixed(1)}%)`; if (finalPercDiffCheck <= VARIATION_LIMIT_PASS_3) { variationLogHTML += ` <span class="success">(OK)</span>`; } else { variationLogHTML += ` <span class="warning">(Still High)</span>`; } if (maxSlotsIsFinite) { variationLogHTML += `, Slots Rem ${lpd}: ${currentRemainingSlots[lpd]}`; } } else { variationLogHTML += ` -> <span class="warning">No fix found. Stopping Pass 3.</span>`; madeVariationAdjustment = false; } variationLogHTML += `</div>`; } if (variationLoopCounter >= maxVariationLoops) { variationLogHTML += `\n<span class="error">Stopped Pass 3: Loop limit (${maxVariationLoops}) reached.</span>`; } logs.variation = variationLogHTML;
+             let finalCumulativeUsage = {}; uniqueLpdValuesLocal.forEach(lpd => { finalCumulativeUsage[lpd] = 0; }); currentItemAllocations.forEach(alloc => { alloc.finalUsageCounts = {}; if (!alloc.error && alloc.combination) { alloc.combination.forEach(lpd => { alloc.finalUsageCounts[lpd] = (alloc.finalUsageCounts[lpd] || 0) + 1; if (finalCumulativeUsage.hasOwnProperty(lpd)) { finalCumulativeUsage[lpd]++; } else { console.error(`Logic Error Final Count: LPD ${lpd} used but not in unique list.`); } }); } });
+             return { itemAllocations: currentItemAllocations, cumulativeUsage: finalCumulativeUsage, remainingSlots: currentRemainingSlots, logs: logs };
+        }
+
+        // --- ALLOCATOR DISPLAY FUNCTIONS (displayStrategyDetails, etc. - Remain the same as v0.4) ---
+        function displayStrategyDetails(encodedStrategyName) { /* ... same ... */
+             const strategyName = decodeURIComponent(encodedStrategyName); console.log(`Displaying details for: ${strategyName}`); const statusAreaDiv = document.getElementById('statusArea'); const detailsTitle = document.getElementById('detailsTitle'); const selectedResult = globalStrategyResults.find(res => res.strategyName === strategyName); const allocationResultsDiv = document.getElementById('allocationResults'); const adjustmentLogDiv = document.getElementById('adjustmentLog'); const variationLogDiv = document.getElementById('variationLog'); const cumulativeUsageDiv = document.getElementById('cumulativeUsage'); const lpdBreakdownDiv = document.getElementById('lpdBreakdown'); const finalSummaryTableDiv = document.getElementById('finalSummaryTableDiv'); allocationResultsDiv.innerHTML = 'Loading...'; adjustmentLogDiv.innerHTML = ''; variationLogDiv.innerHTML = ''; cumulativeUsageDiv.innerHTML = ''; lpdBreakdownDiv.innerHTML = ''; finalSummaryTableDiv.innerHTML = '';
+             if (!selectedResult) { statusAreaDiv.innerHTML = `<span class="error">Error: Could not find results for "${strategyName}".</span>`; detailsTitle.innerHTML = 'Detailed Results'; allocationResultsDiv.innerHTML = ''; return; }
+             if (!selectedResult.resultData || !selectedResult.resultData.itemAllocations) { statusAreaDiv.innerHTML = `<span class="error">Error: Incomplete data for "${strategyName}".</span>`; detailsTitle.innerHTML = 'Detailed Results'; allocationResultsDiv.innerHTML = '<span class="error">Incomplete data.</span>'; return; }
+             try { statusAreaDiv.innerHTML = `Displaying details for strategy: <span class="info">${strategyName}</span>`; detailsTitle.innerHTML = `Detailed Allocation Results (Strategy: ${strategyName})`; const finalItems = selectedResult.itemsUsed; const finalAllocations = selectedResult.resultData.itemAllocations; const finalCumulativeUsage = selectedResult.resultData.cumulativeUsage; const finalRemainingSlots = selectedResult.resultData.remainingSlots; const finalLogs = selectedResult.resultData.logs; const uniqueLpdValuesDisplay = globalUniqueLpdValues; const maxSlotsDisplayLocal = globalMaxSlotsDisplay; const originalItemsUnsorted = globalOriginalItems; const initialTotalSlotsPerValueLocal = globalInitialTotalSlotsPerValue; const lpdInstanceCountsLocal = globalLpdInstanceCounts; const userLpdCombinationWithDuplicatesLocal = globalUserLpdCombinationWithDuplicates; const maxSlotsNum = globalMaxSlotsPerInstance; const maxSlotsIsFinite = globalMaxSlotsPerInstance !== Infinity; adjustmentLogDiv.innerHTML = finalLogs.adjustment || "No adjust log."; variationLogDiv.innerHTML = finalLogs.variation || "No variation log.";
+                 let finalAllocationHTML = `--- Final Item Allocations (Strategy: ${selectedResult.strategyName}) ---`; if (finalItems && finalAllocations && finalItems.length === finalAllocations.length) { finalItems.forEach((item, i) => { finalAllocationHTML += `<div class="item-allocation">`; finalAllocationHTML += `<b>${i + 1}. ${item.details}</b> (Orig Line: ${item.originalIndex + 1}, Target: ${item.amount})\n`; const finalAlloc = finalAllocations[i]; if (!finalAlloc) { finalAllocationHTML += `<span class="error">Alloc data missing.</span>\n`; } else if (finalAlloc.error) { finalAllocationHTML += `<span class="error">Alloc Error: ${finalAlloc.error}</span>\n`; } else if (finalAlloc.sum !== undefined) { const finalPercDiff = item.amount > 0 ? (finalAlloc.difference / item.amount) : (finalAlloc.sum === 0 ? 0 : Infinity); const absFinalPercDiff = Math.abs(finalPercDiff); let diffClass = finalAlloc.difference === 0 ? 'zero-diff' : (finalAlloc.difference > 0 ? 'positive-diff' : 'negative-diff'); let diffSign = finalAlloc.difference > 0 ? '+' : ''; finalAllocationHTML += `<span class="highlight">Sum: ${finalAlloc.sum}</span> (Diff: <span class="${diffClass}">${diffSign}${finalAlloc.difference.toFixed(0)}</span>`; if (item.amount > 0) { finalAllocationHTML += ` / ${(finalPercDiff * 100).toFixed(1)}%`; if (absFinalPercDiff > REPROCESS_VARIATION_LIMIT) { finalAllocationHTML += ` <span class="violation">>±${(REPROCESS_VARIATION_LIMIT * 100).toFixed(0)}%</span>`; } else if (absFinalPercDiff > VARIATION_LIMIT_PASS_3) { finalAllocationHTML += ` <span class="warning">>±${(VARIATION_LIMIT_PASS_3 * 100).toFixed(0)}%</span>`; } } else if (finalAlloc.sum !== 0) { finalAllocationHTML += ` <span class="violation">Non-zero sum for zero target</span>`; } finalAllocationHTML += `)\n`; if (finalAlloc.combination && finalAlloc.combination.length > 0) { finalAllocationHTML += `   Combo (${finalAlloc.combination.length}): [${finalAlloc.combination.join(', ')}]`; if (finalAlloc.finalUsageCounts && Object.keys(finalAlloc.finalUsageCounts).length > 0) { finalAllocationHTML += `\n   Usage: { ${Object.entries(finalAlloc.finalUsageCounts).map(([lpd, count]) => `"${lpd}": ${count}`).join(', ')} }`; } else { finalAllocationHTML += `\n   Usage: {}`; } } else { finalAllocationHTML += `   (No LPDs allocated)`; } } else { finalAllocationHTML += "<span class='error'>Invalid Alloc Structure</span>"; } finalAllocationHTML += `</div>`; }); } else { finalAllocationHTML += '<span class="error">Item/Alloc mismatch.</span>'; } allocationResultsDiv.innerHTML = finalAllocationHTML;
+                 let usageSummaryHTML = `<div class="usage-summary">--- Cumulative LPD Usage (Strat: ${selectedResult.strategyName}, Max Slots/Inst: ${maxSlotsDisplayLocal}) ---<ul>`; if (uniqueLpdValuesDisplay && uniqueLpdValuesDisplay.length > 0) { uniqueLpdValuesDisplay.forEach(lpd => { const initialTotal = initialTotalSlotsPerValueLocal[lpd] || 0; const usedTotal = finalCumulativeUsage[lpd] || 0; let remainingTotal; if(maxSlotsIsFinite) { remainingTotal = finalRemainingSlots.hasOwnProperty(lpd) ? finalRemainingSlots[lpd] : (initialTotal - usedTotal); } else { remainingTotal = Infinity; } const numInstances = lpdInstanceCountsLocal[lpd] || 0; usageSummaryHTML += `<li>LPD <b>${lpd}</b> (${numInstances} inst): Used <b>${usedTotal}</b>`; if (maxSlotsIsFinite) { usageSummaryHTML += ` (Initial: ${initialTotal}, Rem: ${remainingTotal})`; if (remainingTotal < 0) { usageSummaryHTML += ` <span class="error">(Slot Error!)</span>`; } else if (usedTotal + remainingTotal !== initialTotal && initialTotal !== Infinity) { console.warn(`Slot mismatch LPD ${lpd}: Used ${usedTotal}, Rem ${remainingTotal}, Initial ${initialTotal}. Strat: ${strategyName}`); usageSummaryHTML += ` <span class="warning">(Count Mismatch?)</span>`; } } usageSummaryHTML += `</li>`; }); } else { usageSummaryHTML += "<li>No LPDs to track.</li>"; } usageSummaryHTML += "</ul></div>"; cumulativeUsageDiv.innerHTML = usageSummaryHTML;
+                 let lpdBreakdownHTML = `<div class="lpd-section-title">--- LPD Usage Breakdown by Instance (Strat: ${selectedResult.strategyName}) ---`; const allLpdUses = []; finalItems.forEach((item, i) => { const finalAlloc = finalAllocations[i]; if (finalAlloc && !finalAlloc.error && finalAlloc.combination) { finalAlloc.combination.forEach(lpdVal => { allLpdUses.push({ itemIndex: i, itemDetails: item.details, lpdValue: lpdVal, assignedInstanceKey: null }); }); } }); const lpdInstanceCounters = {}; const breakdownByInstance = {}; if (userLpdCombinationWithDuplicatesLocal && userLpdCombinationWithDuplicatesLocal.length > 0) { userLpdCombinationWithDuplicatesLocal.forEach(lpdInputVal => { const currentInstanceNum = (lpdInstanceCounters[lpdInputVal] || 0) + 1; lpdInstanceCounters[lpdInputVal] = currentInstanceNum; const instanceKey = `${lpdInputVal}_${currentInstanceNum}`; breakdownByInstance[instanceKey] = { lpdValue: lpdInputVal, instanceNum: currentInstanceNum, items: [], total: 0 }; let assignedToThisInstance = 0; for (let use of allLpdUses) { if (use.lpdValue === lpdInputVal && use.assignedInstanceKey === null) { if (!maxSlotsIsFinite || assignedToThisInstance < maxSlotsNum) { use.assignedInstanceKey = instanceKey; assignedToThisInstance++; } if (maxSlotsIsFinite && assignedToThisInstance >= maxSlotsNum) break; } } }); Object.keys(breakdownByInstance).forEach(instanceKey => { const instanceData = breakdownByInstance[instanceKey]; const usesForThisInstance = allLpdUses.filter(use => use.assignedInstanceKey === instanceKey); instanceData.total = usesForThisInstance.length; const itemsMap = {}; usesForThisInstance.forEach(use => { itemsMap[use.itemDetails] = (itemsMap[use.itemDetails] || 0) + 1; }); instanceData.items = Object.entries(itemsMap).map(([details, count]) => ({ details, count })).sort((a, b) => a.details.localeCompare(b.details)); }); Object.keys(breakdownByInstance).sort((a, b) => { const lA = breakdownByInstance[a].lpdValue, lB = breakdownByInstance[b].lpdValue; const iA = breakdownByInstance[a].instanceNum, iB = breakdownByInstance[b].instanceNum; return lA - lB || iA - iB; }).forEach(instanceKey => { const instanceData = breakdownByInstance[instanceKey]; lpdBreakdownHTML += `<div class="lpd-section"><span class="lpd-section-title">LPD: ${instanceData.lpdValue} (Instance ${instanceData.instanceNum})</span>`; if (instanceData.items.length > 0) { lpdBreakdownHTML += `<ul class="lpd-item-list">`; instanceData.items.forEach(itemUse => { lpdBreakdownHTML += `<li>${itemUse.details}: ${itemUse.count}x</li>`; }); lpdBreakdownHTML += `</ul><div class="lpd-total">Total Used: ${instanceData.total}`; if (maxSlotsIsFinite) { lpdBreakdownHTML += ` / ${maxSlotsNum}`; if (instanceData.total > maxSlotsNum) { lpdBreakdownHTML += ` <span class="error">(Exceeded!)</span>`; } } lpdBreakdownHTML += `</div>`; } else { lpdBreakdownHTML += `\n   (Not used)`; } lpdBreakdownHTML += `</div>`; }); const unassignedUses = allLpdUses.filter(use => use.assignedInstanceKey === null); if (unassignedUses.length > 0) { console.warn(`Strat ${strategyName}: ${unassignedUses.length} LPD uses unassigned.`, unassignedUses); lpdBreakdownHTML += `<div class="lpd-section"><span class="lpd-section-title warning">Warn: ${unassignedUses.length} LPD uses unassigned.</span></div>`; } } else { lpdBreakdownHTML += "<p>No LPD combo for breakdown.</p>"; } lpdBreakdownDiv.innerHTML = lpdBreakdownHTML;
+                 let summaryTableHTML = `<div class="lpd-section-title">--- Alloc Summary Table (Strat: ${selectedResult.strategyName}) ---</div><table id="finalSummaryTable"><thead><tr><th>Sabor</th><th>Quantidade</th><th>Empenho</th><th>Dif</th><th>Var (%)</th></tr></thead><tbody>`; const allocationMap = new Map(); finalItems.forEach((item, i) => { allocationMap.set(item.originalIndex, { itemData: item, allocationData: finalAllocations[i] }); }); originalItemsUnsorted.forEach(originalItem => { const resultEntry = allocationMap.get(originalItem.originalIndex); let sabor = originalItem.details; let quantidade = originalItem.amount; let empenho = 'N/A'; let difHtml = 'N/A'; let varHtml = 'N/A'; if (resultEntry && resultEntry.allocationData) { const finalAlloc = resultEntry.allocationData; if (!finalAlloc.error && finalAlloc.sum !== undefined) { empenho = finalAlloc.sum.toFixed(0); const dif = finalAlloc.difference; let difClass = dif === 0 ? 'zero-diff' : (dif > 0 ? 'positive-diff' : 'negative-diff'); let difSign = dif > 0 ? '+' : ''; difHtml = `<span class="${difClass}">${difSign}${dif.toFixed(0)}</span>`; if (quantidade > 0) { const percentage = (dif / quantidade); const percentageFmt = (percentage * 100).toFixed(1) + '%'; varHtml = percentageFmt; if (Math.abs(percentage) > REPROCESS_VARIATION_LIMIT) { varHtml = `<span class="violation">${percentageFmt}</span>`; } else if (Math.abs(percentage) > VARIATION_LIMIT_PASS_3) { varHtml = `<span class="warning">${percentageFmt}</span>`; } } else if (finalAlloc.sum !== 0) { varHtml = `<span class="violation">N/A</span>`; } else { varHtml = '0.0%'; } } else if (finalAlloc.error) { empenho = `<span class="error">Error</span>`; let shortError = finalAlloc.error.length > 50 ? finalAlloc.error.substring(0, 47) + '...' : finalAlloc.error; difHtml = `<span class="error" title="${finalAlloc.error}">${shortError}</span>`; varHtml = `<span class="error">Error</span>`; } } else { empenho = '<span class="warning">N/A</span>'; difHtml = '<span class="warning">N/A</span>'; varHtml = '<span class="warning">N/A</span>'; } summaryTableHTML += `<tr><td>${sabor}</td><td>${quantidade}</td><td>${empenho}</td><td>${difHtml}</td><td>${varHtml}</td></tr>`; }); summaryTableHTML += `</tbody></table>`; finalSummaryTableDiv.innerHTML = summaryTableHTML; updateComparisonTableHighlight(strategyName);
+             } catch (e) { console.error(`Error displaying details for ${strategyName}:`, e); statusAreaDiv.innerHTML = `<span class="error">Error displaying details for "${strategyName}". Check console. Err: ${e.message}</span>`; allocationResultsDiv.innerHTML = '<span class="error">Display Error</span>'; adjustmentLogDiv.innerHTML = ''; variationLogDiv.innerHTML = ''; cumulativeUsageDiv.innerHTML = ''; lpdBreakdownDiv.innerHTML = ''; finalSummaryTableDiv.innerHTML = ''; detailsTitle.innerHTML = `Detailed Results (Error)`; }
+        }
+        function updateComparisonTableHighlight(selectedStrategyName) { /* ... same ... */
+             const table = document.getElementById('comparisonTable'); if (!table) return; const tbody = table.getElementsByTagName('tbody')[0]; if (!tbody) return; const rows = tbody.getElementsByTagName('tr'); for (let row of rows) { row.classList.remove('best-effort'); const firstCell = row.cells[0]; if (firstCell) { firstCell.textContent = firstCell.textContent.replace(/\s*\(Selected\)$/, '').trim(); const currentStrategyName = firstCell.textContent; const resultEntry = globalStrategyResults.find(res => res.strategyName === currentStrategyName); row.classList.remove('strategy-error-row'); if (resultEntry && resultEntry.hasAllocationError) { row.classList.add('strategy-error-row'); } if (currentStrategyName === selectedStrategyName) { row.classList.add('best-effort'); firstCell.textContent = `${currentStrategyName} (Selected)`; } } }
+        }
+        function toggleErrorStrategies() { /* ... same ... */
+             const container = document.getElementById('comparisonTableContainer'); const button = document.getElementById('toggleErrorsBtn'); if (container && button) { const hiding = container.classList.toggle('hide-errors'); const errorRowCount = globalStrategyResults.filter(r => r.hasAllocationError).length; button.textContent = hiding ? `Show ${errorRowCount} Errored Strat...` : `Hide ${errorRowCount} Errored Strat...`; }
+        }
+
+
+        // --- MAIN CONTROLLING FUNCTION (Updated) ---
+        function initiateProcess(mode) { // Mode is 'findBest' or 'forceProportional'
+            console.clear();
+            console.log(`--- Starting Process (Mode: ${mode}) ---`);
+
+            // --- 1. Get Inputs & Reset UI (Common) ---
+            const tableDataInput = document.getElementById('tableData').value.trim();
+            const maxSlotsInput = document.getElementById('maxSlots').value.trim();
+            const combinationSizeInput = document.getElementById('combinationSize').value.trim();
+            const finderResultsLogDiv = document.getElementById('finderResultsLog');
+            const foundCombinationDisplayDiv = document.getElementById('foundCombinationDisplay');
+            const statusAreaDiv = document.getElementById('statusArea'); // Allocator status
+            const strategyComparisonDiv = document.getElementById('strategyComparison');
+            const allocationResultsDiv = document.getElementById('allocationResults'); // Detailed Allocator outputs...
+            const adjustmentLogDiv = document.getElementById('adjustmentLog');
+            const variationLogDiv = document.getElementById('variationLog');
+            const cumulativeUsageDiv = document.getElementById('cumulativeUsage');
+            const lpdBreakdownDiv = document.getElementById('lpdBreakdown');
+            const finalSummaryTableDiv = document.getElementById('finalSummaryTableDiv');
+            const detailsTitleH2 = document.getElementById('detailsTitle');
+
+            finderResultsLogDiv.innerHTML = `Processing Combination (Mode: ${mode})...`; // Update initial message
+            foundCombinationDisplayDiv.innerHTML = "";
+            statusAreaDiv.innerHTML = "Waiting for Combination...";
+            strategyComparisonDiv.innerHTML = ""; allocationResultsDiv.innerHTML = ""; adjustmentLogDiv.innerHTML = ""; variationLogDiv.innerHTML = ""; cumulativeUsageDiv.innerHTML = ""; lpdBreakdownDiv.innerHTML = ""; finalSummaryTableDiv.innerHTML = ""; detailsTitleH2.innerHTML = 'Detailed Allocation Results';
+            globalStrategyResults = []; globalOriginalItems = []; globalUniqueLpdValues = []; globalUserLpdCombinationWithDuplicates = []; globalLpdInstanceCounts = {}; globalInitialTotalSlotsPerValue = {}; globalMaxSlotsPerInstance = Infinity; globalMaxSlotsDisplay = "Unlimited";
+
+            // --- 2. Validate Core Inputs (Common) ---
+            if (!tableDataInput) { finderResultsLogDiv.innerHTML = '<span class="error">Error: Table data empty.</span>'; return; }
+            if (!maxSlotsInput) { finderResultsLogDiv.innerHTML = '<span class="error">Error: Max Slots required.</span>'; return; }
+            if (!combinationSizeInput) { finderResultsLogDiv.innerHTML = '<span class="error">Error: Combo Size required.</span>'; return; }
+            let maxSlotsPerInstance; let combinationSize;
+             try { maxSlotsPerInstance = parseInt(maxSlotsInput); if (isNaN(maxSlotsPerInstance) || maxSlotsPerInstance < 1) throw new Error("Max Slots >= 1."); globalMaxSlotsPerInstance = maxSlotsPerInstance; globalMaxSlotsDisplay = String(maxSlotsPerInstance); } catch (e) { finderResultsLogDiv.innerHTML = `<span class="error">Input Error: ${e.message}</span>`; return; }
+             try { combinationSize = parseInt(combinationSizeInput); if (isNaN(combinationSize) || combinationSize < 1) throw new Error("Combo Size >= 1."); } catch (e) { finderResultsLogDiv.innerHTML = `<span class="error">Input Error: ${e.message}</span>`; return; }
+
+            // --- 3. Parse Table Data (Common) ---
+            let parsedItems = []; let parseErrors = []; const lines = tableDataInput.split('\n'); let minRawAmount = Infinity, maxRawAmount = -Infinity, sumRawAmount = 0, validItemCount = 0;
+            lines.forEach((line, index) => { line = line.trim(); if (!line) return; let parts = line.split('\t'); let details = ''; if (parts.length < 2) parts = line.split(/\s+/); if (parts.length < 2) { parseErrors.push(`L${index + 1}: Cannot split: "${line}"`); return; } const amountStr = parts[parts.length - 1].replace(/,/g, ''); details = parts.slice(0, -1).join(parts.length > 2 && line.includes('\t') ? '\t' : ' '); const amount = parseInt(amountStr); if (isNaN(amount)) { parseErrors.push(`L${index + 1}: Amount NaN ('${parts[parts.length - 1]}') for "${details}"`); return; } if (amount < 0) { parseErrors.push(`L${index + 1}: Amount negative (${amount}) for "${details}"`); return; } parsedItems.push({ details: details, amount: amount, originalIndex: index }); sumRawAmount += amount; validItemCount++; if (amount < minRawAmount) minRawAmount = amount; if (amount > maxRawAmount) maxRawAmount = amount; });
+            if (parseErrors.length > 0) { finderResultsLogDiv.innerHTML = `<span class="error">Parse Errors:</span>\n${parseErrors.join('\n')}`; return; }
+            if (parsedItems.length === 0) { finderResultsLogDiv.innerHTML = `<span class="error">Error: No valid items parsed.</span>`; return; }
+            globalOriginalItems = parsedItems;
+            console.log(`Parsed ${validItemCount} items. Sum: ${sumRawAmount}, Min: ${minRawAmount}, Max: ${maxRawAmount}`);
+
+            // --- 4. Determine LPD Combination based on mode ---
+            finderResultsLogDiv.innerHTML = `Generating Combination (Mode: ${mode})...`;
+            setTimeout(() => {
+                try {
+                    let combinationResult = null;
+                    let combinationMethodDescription = "";
+
+                    if (mode === 'findBest') {
+                        console.log("Calling findBestLpdCombination...");
+                        combinationResult = findBestLpdCombination(globalOriginalItems, maxSlotsPerInstance, combinationSize);
+                        combinationMethodDescription = "Best LPD Method (Standard/GCD/Prop. Fallback)";
+                    } else if (mode === 'forceProportional') {
+                        console.log("Calling calculateDirectProportionalCombination...");
+                        combinationResult = calculateDirectProportionalCombination(globalOriginalItems, maxSlotsPerInstance, combinationSize);
+                        combinationMethodDescription = "Direct Proportional Method";
+                    } else {
+                        throw new Error(`Unknown mode: ${mode}`);
+                    }
+
+                    // Display Combination Log
+                    finderResultsLogDiv.innerHTML = combinationResult.log;
+
+                    if (combinationResult.status === "Error" || !combinationResult.combination || combinationResult.combination.length === 0) {
+                        // Allow empty combination [] if status is OK (e.g., target was 0)
+                        if (combinationResult.status === "OK" && Array.isArray(combinationResult.combination) && combinationResult.combination.length === 0) {
+                             foundCombinationDisplayDiv.innerHTML = `<span class="warning">Combination Generation resulted in an empty list []. Proceeding to Allocator with no LPDs.</span>`;
+                             statusAreaDiv.innerHTML = "Combination empty. Running Allocator...";
+                             globalUserLpdCombinationWithDuplicates = []; // Ensure it's an empty array
+                             globalUniqueLpdValues = [];
+                             globalLpdInstanceCounts = {};
+                             globalInitialTotalSlotsPerValue = {};
+                        } else {
+                            foundCombinationDisplayDiv.innerHTML = `<span class="error">Combination Generation failed (Mode: ${mode}). Cannot proceed.</span>`;
+                            statusAreaDiv.innerHTML = "Allocator Aborted (Combination Failed).";
+                            return; // Stop processing
+                        }
+                    } else {
+                        // Combination Generation succeeded
+                        globalUserLpdCombinationWithDuplicates = combinationResult.combination;
+                        globalUniqueLpdValues = [...new Set(globalUserLpdCombinationWithDuplicates)].sort((a, b) => a - b);
+                        globalLpdInstanceCounts = {}; globalUserLpdCombinationWithDuplicates.forEach(lpd => { globalLpdInstanceCounts[lpd] = (globalLpdInstanceCounts[lpd] || 0) + 1; });
+                        globalInitialTotalSlotsPerValue = {}; globalUniqueLpdValues.forEach(lpd => { const instances = globalLpdInstanceCounts[lpd] || 0; globalInitialTotalSlotsPerValue[lpd] = globalMaxSlotsPerInstance !== Infinity ? (instances * globalMaxSlotsPerInstance) : Infinity; });
+
+                        console.log("Combination Result (Values):", globalUserLpdCombinationWithDuplicates);
+                        console.log("Combination Result (Unique):", globalUniqueLpdValues);
+                        console.log("Combination Result (Counts):", globalLpdInstanceCounts);
+                        console.log("Combination Result (Initial Slots):", globalInitialTotalSlotsPerValue);
+
+                        foundCombinationDisplayDiv.innerHTML = `Generated Combination (<span class="info">${combinationMethodDescription}</span>): <b>[${globalUserLpdCombinationWithDuplicates.join(', ')}]</b> (Size: ${globalUserLpdCombinationWithDuplicates.length})`;
+                        statusAreaDiv.innerHTML = `Combination complete (Mode: ${mode}). Running Allocator...`;
+                    }
+
+                    // --- 5. Run Allocator using the generated combination ---
+                    runAllocatorPhase(); // Call the allocator regardless of empty combo
+
+                } catch (combinationError) {
+                    console.error(`Error during Combination Generation (Mode: ${mode}):`, combinationError);
+                    finderResultsLogDiv.innerHTML += `\n<span class="error">An unexpected error occurred during combination generation: ${combinationError.message}</span>`;
+                    foundCombinationDisplayDiv.innerHTML = `<span class="error">Combination generation crashed (Mode: ${mode}).</span>`;
+                    statusAreaDiv.innerHTML = "Allocator Aborted (Combination Crash).";
+                }
+            }, 10); // Small timeout for UI refresh
+
+        } // End initiateProcess
+
+
+        // --- Allocator Phase Function (runAllocatorPhase - Remains the same as v0.4) ---
+        function runAllocatorPhase() {
+            console.log("--- Starting Allocator Phase ---");
+            const statusAreaDiv = document.getElementById('statusArea');
+            const strategyComparisonDiv = document.getElementById('strategyComparison');
+            const allocationResultsDiv = document.getElementById('allocationResults');
+
+            // Check if Finder/Generator provided necessary *items* data (combo can be empty)
+            if (!globalOriginalItems || globalOriginalItems.length === 0) {
+                statusAreaDiv.innerHTML = `<span class="error">Allocator Error: Missing parsed items.</span>`;
+                return;
+            }
+            // Log if combo is empty
+            if (!globalUserLpdCombinationWithDuplicates || globalUserLpdCombinationWithDuplicates.length === 0) {
+                console.warn("Allocator Phase: Running with an empty LPD combination.");
+                // Allocator should handle this gracefully (DP will likely return errors or 0 sums)
+            }
+
+            // --- Define Sorting Strategies (Same 24) ---
+            const strategies = [ /* ... Same 24 strategies ... */
+                 { name: "Original Input Order", sortFn: (items) => [...items] }, { name: "Amount Ascending", sortFn: (items) => [...items].sort((a, b) => a.amount - b.amount) }, { name: "Amount Descending", sortFn: (items) => [...items].sort((a, b) => b.amount - a.amount) }, { name: "Details Ascending (A-Z)", sortFn: (items) => [...items].sort((a, b) => a.details.localeCompare(b.details)) }, { name: "Details Descending (Z-A)", sortFn: (items) => [...items].sort((a, b) => b.details.localeCompare(a.details)) },
+                 { name: "Amount Middle-Out (Down/Up)", sortFn: (items) => { const s = [...items].sort((a, b) => a.amount - b.amount), r = [], n = s.length; if (n === 0) return []; const m = Math.floor(n / 2); r.push(s[m]); let l = m - 1, g = m + 1; while (l >= 0 || g < n) { if (l >= 0) r.push(s[l--]); if (g < n) r.push(s[g++]); } return r; }}, { name: "Amount Middle-Out (Up/Down)", sortFn: (items) => { const s = [...items].sort((a, b) => a.amount - b.amount), r = [], n = s.length; if (n === 0) return []; const m = Math.floor(n / 2); r.push(s[m]); let l = m - 1, g = m + 1; while (l >= 0 || g < n) { if (g < n) r.push(s[g++]); if (l >= 0) r.push(s[l--]); } return r; }},
+                 { name: "Details Middle-Out (Down/Up)", sortFn: (items) => { const s = [...items].sort((a,b)=>a.details.localeCompare(b.details)), r = [], n = s.length; if (n === 0) return []; const m = Math.floor(n / 2); r.push(s[m]); let l = m - 1, g = m + 1; while (l >= 0 || g < n) { if (l >= 0) r.push(s[l--]); if (g < n) r.push(s[g++]); } return r; }}, { name: "Details Middle-Out (Up/Down)", sortFn: (items) => { const s = [...items].sort((a,b)=>a.details.localeCompare(b.details)), r = [], n = s.length; if (n === 0) return []; const m = Math.floor(n / 2); r.push(s[m]); let l = m - 1, g = m + 1; while (l >= 0 || g < n) { if (g < n) r.push(s[g++]); if (l >= 0) r.push(s[l--]); } return r; }},
+                 { name: "Amount Outside-In (Interleaved)", sortFn: (items) => { const s = [...items].sort((a,b)=>a.amount - b.amount), r = []; let l = 0, g = s.length - 1; while(l <= g) { r.push(s[l++]); if (l <= g) { r.push(s[g--]); } } return r; }}, { name: "Details Outside-In (Interleaved)", sortFn: (items) => { const s = [...items].sort((a,b)=>a.details.localeCompare(b.details)), r = []; let l = 0, g = s.length - 1; while(l <= g) { r.push(s[l++]); if (l <= g) { r.push(s[g--]); } } return r; }},
+                 { name: "Amount Asc, Details Asc (Tiebreaker)", sortFn: (items) => [...items].sort((a, b) => a.amount - b.amount || a.details.localeCompare(b.details)) }, { name: "Amount Asc, Index Asc (Tiebreaker)", sortFn: (items) => [...items].sort((a, b) => a.amount - b.amount || a.originalIndex - b.originalIndex) }, { name: "Amount Asc, Index Desc (Tiebreaker)", sortFn: (items) => [...items].sort((a, b) => a.amount - b.amount || b.originalIndex - a.originalIndex) }, { name: "Amount Desc, Index Asc (Tiebreaker)", sortFn: (items) => [...items].sort((a, b) => b.amount - a.amount || a.originalIndex - b.originalIndex) }, { name: "Amount Desc, Index Desc (Tiebreaker)", sortFn: (items) => [...items].sort((a, b) => b.amount - a.amount || b.originalIndex - a.originalIndex) },
+                 { name: "Amount by Last Digit", sortFn: (items) => [...items].sort((a, b) => (a.amount % 10) - (b.amount % 10) || a.amount - b.amount) }, { name: "Amount by First Digit", sortFn: (items) => { const fd = (n) => {n=Math.abs(n); if(n===0) return 0; while(n>=10) n=Math.floor(n/10); return n;}; return [...items].sort((a, b) => fd(a.amount) - fd(b.amount) || a.amount - b.amount); }},
+                 { name: "Amount Asc (Process Thirds S->L->M)", sortFn: (items) => { const s = [...items].sort((a,b)=>a.amount-b.amount), n=s.length, t=Math.ceil(n/3); return [...s.slice(0,t), ...s.slice(n-t), ...s.slice(t,n-t)]; }}, { name: "Amount Desc (Process Thirds L->S->M)", sortFn: (items) => { const s = [...items].sort((a,b)=>b.amount-a.amount), n=s.length, t=Math.ceil(n/3); return [...s.slice(0,t), ...s.slice(n-t), ...s.slice(t,n-t)]; }},
+                 { name: "Amount Asc (Interleave by 3: 0,3.. 1,4.. 2,5..)", sortFn: (items) => { const s=[...items].sort((a,b)=>a.amount-b.amount), r=[], n=s.length; for(let k=0;k<3;k++) for(let i=k;i<n;i+=3) r.push(s[i]); return r; }}, { name: "Amount Desc (Interleave by 3: 0,3.. 1,4.. 2,5..)", sortFn: (items) => { const s=[...items].sort((a,b)=>b.amount-a.amount), r=[], n=s.length; for(let k=0;k<3;k++) for(let i=k;i<n;i+=3) r.push(s[i]); return r; }},
+                 { name: "Amount Deviation from Avg (Closest First)", sortFn: (items) => { if(items.length===0) return []; const avg = items.reduce((sum,i)=>sum+i.amount,0)/items.length; return [...items].sort((a,b)=>Math.abs(a.amount-avg)-Math.abs(b.amount-avg)); }}, { name: "Amount Deviation from Avg (Furthest First)", sortFn: (items) => { if(items.length===0) return []; const avg = items.reduce((sum,i)=>sum+i.amount,0)/items.length; return [...items].sort((a,b)=>Math.abs(b.amount-avg)-Math.abs(a.amount-avg)); }},
+             ];
+
+            let localStrategyResults = [];
+            let firstSuccessfulResult = null;
+            const comboString = globalUserLpdCombinationWithDuplicates.length > 0 ? `[${globalUserLpdCombinationWithDuplicates.join(', ')}]` : '[Empty]';
+            statusAreaDiv.innerHTML = `Running allocation for ${strategies.length} strategies using combination ${comboString}... Please wait.`;
+
+            setTimeout(() => {
+                try {
+                    for (const strategy of strategies) {
+                        console.log(`--- Running Allocator Strategy: ${strategy.name} ---`);
+                        const currentItemsOrdered = strategy.sortFn(globalOriginalItems).map((item, idx) => ({ ...item, index: idx }));
+                        const result = runAllocationProcess(currentItemsOrdered, [...globalUserLpdCombinationWithDuplicates], globalMaxSlotsPerInstance);
+                        let hasAllocationError = false; let firstErrorMessage = "";
+                        if (result && result.itemAllocations) { for(let i = 0; i < result.itemAllocations.length; i++) { const alloc = result.itemAllocations[i]; const item = currentItemsOrdered[i]; if (!alloc) { hasAllocationError = true; firstErrorMessage = "Missing alloc object"; break;} if (alloc.error) { hasAllocationError = true; if (!firstErrorMessage) firstErrorMessage = alloc.error; break; } if (item.amount > 0 && alloc.sum === 0) { hasAllocationError = true; if (!firstErrorMessage) firstErrorMessage = "-100% Var (Sum 0)"; alloc.error = alloc.error ? (alloc.error + "; Sum 0 for >0 target") : "Sum 0 for >0 target"; break; } } } else { hasAllocationError = true; firstErrorMessage = "Invalid result structure"; } if (hasAllocationError) console.warn(`--- Alloc Strat ${strategy.name}: Error(s). First: "${firstErrorMessage}"`);
+                        const maxVariation = calculateMaxVariation(currentItemsOrdered, result.itemAllocations); const avgVariation = calculateAverageVariation(currentItemsOrdered, result.itemAllocations); const meetsLimit = !hasAllocationError && maxVariation <= REPROCESS_VARIATION_LIMIT;
+                        console.log(`--- Alloc Strat ${strategy.name} Result: MaxVar=${(maxVariation * 100).toFixed(2)}%, AvgVar=${(avgVariation * 100).toFixed(2)}%, HasError=${hasAllocationError}, MeetsLimit=${meetsLimit}`);
+                        const resultEntry = { strategyName: strategy.name, itemsUsed: currentItemsOrdered, resultData: result, maxVariation: maxVariation, avgVariation: avgVariation, meetsLimit: meetsLimit, hasAllocationError: hasAllocationError }; localStrategyResults.push(resultEntry);
+                        if (meetsLimit && !firstSuccessfulResult) { firstSuccessfulResult = resultEntry; console.log(`--- Found first successful allocator strategy: ${strategy.name} ---`); }
+                    } // End strategy loop
+
+                    globalStrategyResults = localStrategyResults;
+                    let finalResultToShow = null; let statusMessage = "";
+                    if (firstSuccessfulResult) { finalResultToShow = firstSuccessfulResult; statusMessage = `<span class="success">Default view: First strategy meeting limit: ${finalResultToShow.strategyName}</span>. Click below...`; }
+                    else { if (globalStrategyResults.length > 0) { const errorFreeStrategies = globalStrategyResults.filter(r => !r.hasAllocationError); if (errorFreeStrategies.length > 0) { errorFreeStrategies.sort((a, b) => a.avgVariation - b.avgVariation); finalResultToShow = errorFreeStrategies[0]; const vStr = finalResultToShow.maxVariation === Infinity ? 'Inf' : `${(finalResultToShow.maxVariation * 100).toFixed(1)}%`; const avgStr = (finalResultToShow.avgVariation * 100).toFixed(1) + '%'; statusMessage = `<span class="warning">Default view: No strategy met limit. Showing lowest <span class="info">avg var</span> (error-free):</span> <span class="info">${finalResultToShow.strategyName}</span> (Max: ${vStr}, Avg: ${avgStr}). Click below...`; } else { globalStrategyResults.sort((a, b) => a.avgVariation - b.avgVariation); finalResultToShow = globalStrategyResults[0]; const vStr = finalResultToShow.maxVariation === Infinity ? 'Inf' : `${(finalResultToShow.maxVariation * 100).toFixed(1)}%`; const avgStr = (finalResultToShow.avgVariation * 100).toFixed(1) + '%'; statusMessage = `<span class="error">Default view: All strategies had errors. Showing lowest <span class="info">avg var</span>:</span> <span class="info">${finalResultToShow.strategyName}</span> (Max: ${vStr}, Avg: ${avgStr}). Click below...`; } } else { statusMessage = `<span class="error">Error: No strategy results generated.</span>`; allocationResultsDiv.innerHTML = ''; return; } }
+                    statusAreaDiv.innerHTML = statusMessage;
+
+                    // --- Display Comparison Table ---
+                    let comparisonHTML = `<div class="comparison-title">--- Strategy Comparison Summary ---</div><div id="comparisonTableContainer" class="comparison-table-container hide-errors"><table id="comparisonTable"><thead><tr><th>Strategy</th><th>Max Var (%)</th><th>Avg Var (%)</th><th>Outcome</th></tr></thead><tbody>`;
+                    const successResults = []; const highVarResults = []; const errorResults = []; globalStrategyResults.forEach(res => { if (res.hasAllocationError) errorResults.push(res); else if (res.meetsLimit) successResults.push(res); else highVarResults.push(res); }); const sortByAvgVar = (a, b) => a.avgVariation - b.avgVariation; successResults.sort(sortByAvgVar); highVarResults.sort(sortByAvgVar); errorResults.sort(sortByAvgVar); const sortedResults = [...successResults, ...highVarResults, ...errorResults]; let errorCount = errorResults.length;
+                    sortedResults.forEach(res => { let maxVarStr = ""; if (res.maxVariation === Infinity) { maxVarStr = '<span class="violation">Infinity</span>'; } else { maxVarStr = (res.maxVariation * 100).toFixed(1) + '%'; if (!res.meetsLimit && !res.hasAllocationError) maxVarStr = `<span class="warning">${maxVarStr}</span>`; } let avgVarStr = (res.avgVariation * 100).toFixed(1) + '%'; let outcomeStr = ''; let rowClass = ''; if (res.hasAllocationError) { outcomeStr = `<span class="error">Error</span>`; rowClass = 'strategy-error-row'; } else if (res.meetsLimit) { outcomeStr = `<span class="success">Success</span>`; } else { outcomeStr = `<span class="warning">High Var</span>`; } const isSelectedStrategy = (finalResultToShow && res.strategyName === finalResultToShow.strategyName); if (isSelectedStrategy) rowClass = `${rowClass} best-effort`.trim(); comparisonHTML += `<tr class="${rowClass}"><td class="strategy-name" onclick="displayStrategyDetails('${encodeURIComponent(res.strategyName)}')">${res.strategyName} ${isSelectedStrategy ? '(Selected)' : ''}</td><td>${maxVarStr}</td><td>${avgVarStr}</td><td>${outcomeStr}</td></tr>`; });
+                    comparisonHTML += `</tbody></table></div>`; if (errorCount > 0) { comparisonHTML += `<button id="toggleErrorsBtn" onclick="toggleErrorStrategies()">Show ${errorCount} Errored Strat...</button>`; } strategyComparisonDiv.innerHTML = comparisonHTML;
+
+                    // --- Display Default Details ---
+                    if (finalResultToShow) displayStrategyDetails(encodeURIComponent(finalResultToShow.strategyName));
+                    else allocationResultsDiv.innerHTML = 'No default strategy available.';
+
+                } catch (allocatorError) {
+                    console.error("Error during Allocator strategy processing:", allocatorError);
+                    statusAreaDiv.innerHTML = `<span class="error">Allocator phase error. Check console. Err: ${allocatorError.message}</span>`;
+                    allocationResultsDiv.innerHTML = `<span class="error">Allocator Failed</span>`; strategyComparisonDiv.innerHTML = "";
+                }
+            }, 10); // Timeout for alloc loop
+
+        } // End runAllocatorPhase
+
+    </script>
+
+</body>
+</html>

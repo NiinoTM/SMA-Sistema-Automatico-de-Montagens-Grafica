@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LPD Item Allocator v0.1.7 (Multi-Order Comparison)</title> <!-- Version Bump -->
+    <style>
+         /* Basic styling - unchanged */
+         body { font-family: sans-serif; padding: 20px; }
+        label { display: block; margin-top: 10px; margin-bottom: 5px; font-weight: bold; }
+        textarea { width: 90%; min-height: 150px; margin-bottom: 10px; font-family: monospace; }
+        input[type="number"], input[type="text"] { padding: 8px; margin-bottom: 10px; width: 300px; }
+        button { padding: 10px 15px; cursor: pointer; background-color: #28a745; color: white; border: none; border-radius: 4px; margin-top: 10px; }
+        button:hover { background-color: #218838; }
+        #statusArea, #strategyComparison, #allocationResults, #cumulativeUsage, #adjustmentLog, #lpdBreakdown, #finalSummaryTableDiv, #variationLog { margin-top: 20px; padding: 15px; border: 1px solid #ccc; background-color: #f9f9f9; white-space: pre-wrap; font-family: monospace; } /* Added #strategyComparison */
+        .error { color: red; font-weight: bold; }
+        .info { color: blue; }
+        .warning { color: orange; }
+        .success { color: green; font-weight: bold; }
+        .positive-diff { color: #dc3545; } /* Red for positive difference (sum > target) */
+        .negative-diff { color: #198754; } /* Green for negative difference (sum < target) */
+        .zero-diff { color: #6c757d; }    /* Grey for zero difference */
+        .violation { background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; padding: 1px 3px; border-radius: 3px;} /* Highlight variation violations */
+        .input-group { margin-bottom: 15px; }
+        .highlight { background-color: #cff4fc; font-weight: bold; border: 1px solid #9eeaf9;}
+        .item-allocation, .adjustment-step, .lpd-section, .variation-step { border-top: 1px dashed #aaa; margin-top: 10px; padding-top: 10px;}
+        .usage-summary, .lpd-section-title, .comparison-title { margin-top: 15px; font-weight: bold; } /* Added .comparison-title */
+        .lpd-item-list { margin-left: 20px; list-style-type: none; padding-left: 0;}
+        .lpd-item-list li { margin-bottom: 3px; }
+        .lpd-total { margin-top: 5px; font-style: italic; padding-left: 20px; }
+
+        /* Style for Tables - unchanged */
+        #finalSummaryTable, #comparisonTable { width: 80%; border-collapse: collapse; margin-top: 15px; } /* Added #comparisonTable */
+        #finalSummaryTable th, #finalSummaryTable td, #comparisonTable th, #comparisonTable td { border: 1px solid #ddd; padding: 6px 8px; text-align: left; } /* Added #comparisonTable */
+        #finalSummaryTable th, #comparisonTable th { background-color: #e9ecef; font-weight: bold; } /* Added #comparisonTable */
+        #finalSummaryTable td:nth-child(n+2), #comparisonTable td:nth-child(n+2) { text-align: right; } /* Align numeric columns right */ /* Added #comparisonTable */
+        #finalSummaryTable tr:nth-child(even), #comparisonTable tr:nth-child(even) { background-color: #f8f9fa; } /* Added #comparisonTable */
+
+    </style>
+</head>
+<body>
+
+    <h1>LPD Item Allocator (Fill Slots, Limit ±25% Var, Compare Order Strategies)</h1>
+    <p>Allocates items using multiple ordering strategies, adjusts within ±25%, compares the max variation achieved by each strategy, and displays the results of the best strategy found (first one under ±30% variation) or the last attempt.</p>
+
+    <!-- Input fields - unchanged -->
+    <div class="input-group">
+        <label for="tableData">Table Data (Details + Amount, one per line):</label>
+        <textarea id="tableData" placeholder="Example:
+Item A	10000
+Item B	5000
+..."></textarea>
+    </div>
+     <div class="input-group">
+        <label for="lpdCombinationInput">LPD Combination (e.g., [3000, 8000]):</label>
+        <input type="text" id="lpdCombinationInput" placeholder="[3000, 8000]">
+    </div>
+    <div class="input-group">
+        <label for="maxSlots">Max Slots per LPD (Cumulative):</label>
+        <input type="number" id="maxSlots" placeholder="e.g., 3 (blank=unlimited)" min="1" style="width: 120px;">
+    </div>
+
+    <button onclick="allocateAllItems()">Allocate, Compare Strategies & Adjust</button>
+
+    <!-- Output area -->
+    <div id="statusArea">Status messages will appear here...</div>
+    <div id="strategyComparison">Strategy Comparison results will appear here...</div> <!-- New Area -->
+    <div id="allocationResults">Detailed Item Allocation results will appear here...</div>
+    <div id="adjustmentLog">Slot Filling Adjustment Log will appear here...</div>
+    <div id="variationLog">Variation Adjustment Log will appear here...</div>
+    <div id="cumulativeUsage">Cumulative LPD usage will appear here...</div>
+    <div id="lpdBreakdown">LPD Usage Breakdown by Item will appear here...</div>
+    <div id="finalSummaryTableDiv">Final Allocation Summary Table will appear here...</div>
+
+
+    <script>
+        // --- CONFIGURATION RULES ---
+        const MIN_LPD_VALUE_ALLOC = 0; // Unused currently
+        const VARIATION_LIMIT_PASS_3 = 0.25; // 25% limit for correction attempts in Pass 3
+        const REPROCESS_VARIATION_LIMIT = 0.30; // 30% limit to *select* the best strategy
+
+        // --- Find Closest Sum (Allocation DP) ---
+        // Function remains the same as previous version
+        function findClosestSumWithRepetitionAndSlots(lpdArray, target, remainingSlotsMap) {
+            // ... (Keep the exact same DP logic as before) ...
+             if (!lpdArray || lpdArray.length === 0) { return { sum: 0, difference: 0 - target, combination: [], error: "No LPDs provided for allocation" }; }
+             if (target < 0) { return { sum: 0, difference: 0 - target, combination: [], error: "Target amount cannot be negative" }; }
+             lpdArray = [...new Set(lpdArray)].filter(lpd => lpd > 0 && remainingSlotsMap.hasOwnProperty(lpd)).sort((a, b) => a - b);
+             if (lpdArray.length === 0) { return { sum: 0, difference: 0 - target, combination: [], error: "LPD list empty or no LPDs have remaining slots" }; }
+             const smallestLpd = lpdArray[0]; const maxSum = Math.max(target, 0) + smallestLpd; const dp = new Array(maxSum + 1).fill(null); dp[0] = { count: 0, usage: {}, lastLpd: null };
+             for (let i = 1; i <= maxSum; i++) { /* ... DP logic ... */
+                  let bestStateForI = null;
+                  for (const lpd of lpdArray) {
+                      const prevSum = i - lpd;
+                      if (prevSum >= 0 && dp[prevSum] !== null) {
+                          const prevState = dp[prevSum]; const currentLpdUsageInThisPath = (prevState.usage[lpd] || 0) + 1;
+                          const slotsAvailable = remainingSlotsMap[lpd];
+                          if (currentLpdUsageInThisPath <= slotsAvailable) {
+                              const newTotalCount = prevState.count + 1;
+                              if (bestStateForI === null || newTotalCount < bestStateForI.count) { const newUsage = { ...prevState.usage, [lpd]: currentLpdUsageInThisPath }; bestStateForI = { count: newTotalCount, usage: newUsage, lastLpd: lpd }; }
+                          } } } dp[i] = bestStateForI;
+             }
+             let minAbsDiff = Infinity; let closestSum = -1; let bestReachableState = null;
+             for (let i = target; i >= 0; i--) { if (dp[i] !== null) { const diff = Math.abs(target - i); if (diff < minAbsDiff || (diff === minAbsDiff && dp[i].count < bestReachableState.count)) { minAbsDiff = diff; closestSum = i; bestReachableState = dp[i]; } if (diff > minAbsDiff && closestSum !== -1) break; } }
+             for (let i = target + 1; i <= maxSum; i++) { if (dp[i] !== null) { const diff = Math.abs(i - target); if (diff < minAbsDiff || (diff === minAbsDiff && dp[i].count < bestReachableState.count)) { minAbsDiff = diff; closestSum = i; bestReachableState = dp[i]; } if (diff >= minAbsDiff && closestSum !== -1) break; } }
+             if (closestSum === -1) { if (target === 0 && dp[0] !== null) { closestSum = 0; bestReachableState = dp[0]; } else { closestSum = 0; bestReachableState = dp[0] || { count: 0, usage: {}, lastLpd: null }; } }
+             const combination = []; let currentSum = closestSum; let currentState = bestReachableState; let safetyCounter = 0; const maxLoops = (currentState?.count || 0) + lpdArray.length + 100;
+             while (currentSum > 0 && currentState?.lastLpd && safetyCounter < maxLoops) { /* ... backtracking ... */
+                  const usedLpd = currentState.lastLpd; combination.push(usedLpd); const prevSum = currentSum - usedLpd;
+                  if (prevSum >= 0 && dp[prevSum] !== null) { currentState = dp[prevSum]; currentSum = prevSum; }
+                  else { return { sum: closestSum, difference: closestSum - target, combination: combination.sort((a,b)=>a-b), error: `Backtracking state missing for ${prevSum}` }; }
+                  safetyCounter++;
+             }
+              if (safetyCounter >= maxLoops) { return { sum: closestSum, difference: closestSum - target, combination: combination.sort((a,b)=>a-b), error: "Backtracking limit" }; }
+              if (currentSum !== 0 && closestSum !== 0) { return { sum: closestSum, difference: closestSum - target, combination: combination.sort((a,b)=>a-b), error: `Backtracking incomplete (final sum ${currentSum})` }; }
+              const reconstructedSum = combination.reduce((a, b) => a + b, 0);
+              if (reconstructedSum !== closestSum) { return { sum: closestSum, difference: closestSum - target, combination: combination.sort((a,b)=>a-b), error: `Reconstruction mismatch (${reconstructedSum} != ${closestSum})` }; }
+              const finalUsageCheck = {}; for(const lpd of combination) { finalUsageCheck[lpd] = (finalUsageCheck[lpd] || 0) + 1; if (finalUsageCheck[lpd] > remainingSlotsMap[lpd]) { return { sum: closestSum, difference: closestSum - target, combination: combination.sort((a,b)=>a-b), error: `Slot limit violated for LPD ${lpd} during reconstruction` }; } }
+
+              const finalDifference = closestSum - target; // Signed difference
+              return { sum: closestSum, difference: finalDifference, combination: combination.sort((a,b)=>a-b) };
+        }
+
+        // --- Helper: Calculate Max Absolute Variation Percentage for a Run ---
+        function calculateMaxVariation(items, allocations) {
+            let maxAbsPercentage = 0;
+            for (let i = 0; i < items.length; i++) {
+                const item = items[i];
+                const alloc = allocations[i];
+                if (alloc.error || alloc.difference === undefined) continue; // Skip errored or incomplete allocations
+
+                const targetAmount = item.amount;
+                const difference = alloc.difference;
+                let currentAbsPercentage = 0;
+
+                if (targetAmount > 0) {
+                    currentAbsPercentage = Math.abs(difference / targetAmount);
+                } else if (alloc.sum !== 0) {
+                    // If target is 0, any non-zero sum is infinite variation
+                    currentAbsPercentage = Infinity;
+                } // else target is 0 and sum is 0, percentage is 0
+
+                if (currentAbsPercentage > maxAbsPercentage) {
+                    maxAbsPercentage = currentAbsPercentage;
+                }
+            }
+            return maxAbsPercentage;
+        }
+
+
+        // --- Core Allocation Logic (Reusable Function) ---
+        // Function remains the same as previous version
+        function runAllocationProcess(itemsToProcess, userLpdCombination, maxSlots) {
+             // ... (Keep the exact same function logic as v0.1.6) ...
+             const maxSlotsIsFinite = maxSlots !== Infinity;
+             const maxSlotsDisplay = maxSlotsIsFinite ? maxSlots : "Unlimited";
+             let logs = { adjustment: '', variation: '' }; // To store log strings
+
+             // 1. Initialize State for this Run
+             const currentRemainingSlots = {};
+             userLpdCombination.forEach(lpd => { currentRemainingSlots[lpd] = maxSlots; });
+             const currentItemAllocations = new Array(itemsToProcess.length);
+
+             // --- PASS 1: Initial Allocation ---
+             itemsToProcess.forEach((item, i) => {
+                 const initialRemainingForThisItem = {...currentRemainingSlots};
+                 const allocation = findClosestSumWithRepetitionAndSlots(
+                     [...userLpdCombination], item.amount, initialRemainingForThisItem
+                 );
+                 currentItemAllocations[i] = allocation;
+                 if (!allocation.error && allocation.combination.length > 0) {
+                     allocation.combination.forEach(lpd => {
+                         if (currentRemainingSlots[lpd] !== Infinity) {
+                             if (currentRemainingSlots[lpd] > 0) {
+                                 currentRemainingSlots[lpd]--;
+                             } else {
+                                 console.error(`Slot issue Pass 1 (Run Func) LPD ${lpd} for Item ${item.details}`);
+                                 allocation.error = (allocation.error ? allocation.error + '; ' : '') + `Slot count error during initial allocation for LPD ${lpd}`;
+                             }
+                         }
+                     });
+                 }
+             });
+
+             // --- PASS 2: Slot Filling Adjustment ---
+             let adjustmentLogHTML = `--- Pass 2: Slot Filling Adjustments (Target Slots: ${maxSlotsDisplay}) ---`;
+             if (maxSlotsIsFinite) { /* ... adjustment logic ... */
+                 adjustmentLogHTML += `\nInitial Remaining Slots after Pass 1:\n${JSON.stringify(currentRemainingSlots, null, 2)}`;
+                 let totalRemaining = Object.values(currentRemainingSlots).reduce((sum, count) => sum + count, 0);
+                 adjustmentLogHTML += `\nTotal Remaining Slots: ${totalRemaining}`;
+                 let adjustmentSafetyCounter = 0; const maxAdjustments = totalRemaining + itemsToProcess.length * 2;
+                 while (totalRemaining > 0 && adjustmentSafetyCounter < maxAdjustments) {
+                     adjustmentSafetyCounter++; let bestMove = { lpdToAdd: null, itemIndex: -1, minImpact: Infinity };
+                     for (const lpd of userLpdCombination) { if (currentRemainingSlots[lpd] > 0) { for (let i = 0; i < currentItemAllocations.length; i++) { const currentAlloc = currentItemAllocations[i]; if (currentAlloc.error) continue; const originalAmount = itemsToProcess[i].amount; const currentSum = currentAlloc.sum; const currentAbsDifference = Math.abs(currentAlloc.difference); const newSum = currentSum + lpd; const newAbsDifference = Math.abs(newSum - originalAmount); const impact = newAbsDifference - currentAbsDifference; if (impact < bestMove.minImpact) { bestMove = { lpdToAdd: lpd, itemIndex: i, minImpact: impact }; } } } }
+                     if (bestMove.lpdToAdd !== null) { const lpd = bestMove.lpdToAdd; const itemIdx = bestMove.itemIndex; adjustmentLogHTML += `<div class="adjustment-step">Step ${adjustmentSafetyCounter}: Adding LPD <span class="info">${lpd}</span> to Item ${itemsToProcess[itemIdx].index + 1} ('${itemsToProcess[itemIdx].details}')`; adjustmentLogHTML += ` (Impact on Abs Diff: ${bestMove.minImpact >= 0 ? '+' : ''}${bestMove.minImpact.toFixed(0)})`; currentItemAllocations[itemIdx].combination.push(lpd); currentItemAllocations[itemIdx].combination.sort((a,b)=>a-b); currentItemAllocations[itemIdx].sum += lpd; currentItemAllocations[itemIdx].difference = currentItemAllocations[itemIdx].sum - itemsToProcess[itemIdx].amount; currentRemainingSlots[lpd]--; totalRemaining--; adjustmentLogHTML += `\n   -> New Sum: ${currentItemAllocations[itemIdx].sum}, New Signed Diff: ${currentItemAllocations[itemIdx].difference.toFixed(0)}, Slots Remaining for ${lpd}: ${currentRemainingSlots[lpd]}</div>`; }
+                     else { adjustmentLogHTML += `\n<span class="warning">Stopped slot adjustments: No beneficial move found. ${totalRemaining} slots may remain unused.</span>`; break; }
+                 } if (adjustmentSafetyCounter >= maxAdjustments) { adjustmentLogHTML += `\n<span class="error">Stopped slot adjustments due to reaching safety limit (${maxAdjustments}).</span>`; }
+             } else { adjustmentLogHTML += `\n(Skipped: Max Slots was set to Unlimited)`; }
+             logs.adjustment = adjustmentLogHTML;
+
+
+             // --- PASS 3: Variation Correction Adjustment (±25% Target) ---
+              let variationLogHTML = `--- Pass 3: Variation Correction (Target Limit: ±${(VARIATION_LIMIT_PASS_3 * 100).toFixed(0)}%) ---`;
+              let madeVariationAdjustment = true; let variationLoopCounter = 0; const maxVariationLoops = itemsToProcess.length * userLpdCombination.length * 2 + 10;
+              while (madeVariationAdjustment && variationLoopCounter < maxVariationLoops) { /* ... variation correction logic ... */
+                  variationLoopCounter++; madeVariationAdjustment = false; let worstViolation = { index: -1, percentageDiff: 0 };
+                  currentItemAllocations.forEach((alloc, i) => { if (!alloc.error && itemsToProcess[i].amount > 0) { const percentageDiff = Math.abs(alloc.difference / itemsToProcess[i].amount); if (percentageDiff > VARIATION_LIMIT_PASS_3 && percentageDiff > worstViolation.percentageDiff) { worstViolation = { index: i, percentageDiff: percentageDiff }; } } else if (!alloc.error && itemsToProcess[i].amount === 0 && alloc.sum !== 0) { const percentageDiff = Infinity; if (percentageDiff > worstViolation.percentageDiff) { worstViolation = { index: i, percentageDiff: percentageDiff }; } } });
+                  if (worstViolation.index === -1) { variationLogHTML += `\nIteration ${variationLoopCounter}: No items violate the ±${(VARIATION_LIMIT_PASS_3 * 100).toFixed(0)}% target limit for correction.`; break; }
+                  const itemIdx = worstViolation.index; const currentAlloc = currentItemAllocations[itemIdx]; const originalAmount = itemsToProcess[itemIdx].amount; variationLogHTML += `<div class="variation-step">Iteration ${variationLoopCounter}: Trying to fix Item ${itemsToProcess[itemIdx].index + 1} ('${itemsToProcess[itemIdx].details}') - Current Diff: ${currentAlloc.difference.toFixed(0)} (${(worstViolation.percentageDiff * 100).toFixed(1)}%)`; let bestFix = { action: null, lpd: null, finalAbsDiff: Infinity };
+                  const currentCombinationCopy = [...currentAlloc.combination]; for (const lpdToRemove of currentCombinationCopy) { const newSum = currentAlloc.sum - lpdToRemove; const newSignedDiff = newSum - originalAmount; const newPercentageDiff = originalAmount > 0 ? Math.abs(newSignedDiff / originalAmount) : (newSum === 0 ? 0 : Infinity); if (newPercentageDiff <= VARIATION_LIMIT_PASS_3) { const newAbsDiff = Math.abs(newSignedDiff); if (newAbsDiff < bestFix.finalAbsDiff) { bestFix = { action: 'remove', lpd: lpdToRemove, finalAbsDiff: newAbsDiff }; } } }
+                  for (const lpdToAdd of userLpdCombination) { if (currentRemainingSlots[lpdToAdd] > 0 || !maxSlotsIsFinite) { const newSum = currentAlloc.sum + lpdToAdd; const newSignedDiff = newSum - originalAmount; const newPercentageDiff = originalAmount > 0 ? Math.abs(newSignedDiff / originalAmount) : (newSum === 0 ? 0 : Infinity); if (newPercentageDiff <= VARIATION_LIMIT_PASS_3) { const newAbsDiff = Math.abs(newSignedDiff); if (newAbsDiff < bestFix.finalAbsDiff) { bestFix = { action: 'add', lpd: lpdToAdd, finalAbsDiff: newAbsDiff }; } } } }
+                  if (bestFix.action) { madeVariationAdjustment = true; const lpd = bestFix.lpd; variationLogHTML += `\n   -> Action: ${bestFix.action.toUpperCase()} LPD ${lpd}`; if (bestFix.action === 'remove') { const indexToRemove = currentItemAllocations[itemIdx].combination.indexOf(lpd); if (indexToRemove > -1) { currentItemAllocations[itemIdx].combination.splice(indexToRemove, 1); currentItemAllocations[itemIdx].sum -= lpd; currentItemAllocations[itemIdx].difference -= lpd; if (maxSlotsIsFinite) { currentRemainingSlots[lpd]++; } } else { console.error(`Variation Fix Error: Tried to remove ${lpd} but not found in combination for item ${itemIdx}`); variationLogHTML += ` <span class="error">(Error removing!)</span>`; madeVariationAdjustment = false; } } else { currentItemAllocations[itemIdx].combination.push(lpd); currentItemAllocations[itemIdx].combination.sort((a,b) => a-b); currentItemAllocations[itemIdx].sum += lpd; currentItemAllocations[itemIdx].difference += lpd; if (maxSlotsIsFinite) { currentRemainingSlots[lpd]--; } } const finalPercDiff = originalAmount > 0 ? Math.abs(currentItemAllocations[itemIdx].difference / originalAmount) : (currentItemAllocations[itemIdx].sum === 0 ? 0 : Infinity); variationLogHTML += `\n   -> New Sum: ${currentItemAllocations[itemIdx].sum}, New Diff: ${currentItemAllocations[itemIdx].difference.toFixed(0)} (${(finalPercDiff * 100).toFixed(1)}%)`; if (maxSlotsIsFinite) { variationLogHTML += `, Slots Remaining for ${lpd}: ${currentRemainingSlots[lpd]}`; } }
+                  else { variationLogHTML += `\n   <span class="warning">-> No single add/remove action found to bring item within ±${(VARIATION_LIMIT_PASS_3 * 100).toFixed(0)}% target limit. Stopping adjustments for this item.</span>`; madeVariationAdjustment = false; }
+                  variationLogHTML += `</div>`;
+              } // End while
+              if (variationLoopCounter >= maxVariationLoops) { variationLogHTML += `\n<span class="error">Stopped variation adjustments due to reaching loop limit (${maxVariationLoops}).</span>`; }
+              logs.variation = variationLogHTML;
+
+             // --- Calculate Final Usage Counts Per Item ---
+             let finalCumulativeUsage = {}; userLpdCombination.forEach(lpd => { finalCumulativeUsage[lpd] = 0; });
+             currentItemAllocations.forEach(alloc => {
+                 alloc.finalUsageCounts = {};
+                 if (!alloc.error && alloc.combination) {
+                     alloc.combination.forEach(lpd => { alloc.finalUsageCounts[lpd] = (alloc.finalUsageCounts[lpd] || 0) + 1; if (finalCumulativeUsage.hasOwnProperty(lpd)) { finalCumulativeUsage[lpd]++; } else { console.error(`LPD ${lpd} found in allocation but not in initial list.`); } });
+                 }
+             });
+
+             // Return results for this specific run
+             return {
+                 itemAllocations: currentItemAllocations,
+                 cumulativeUsage: finalCumulativeUsage,
+                 remainingSlots: currentRemainingSlots,
+                 logs: logs
+             };
+         }
+
+
+        // --- Main Controlling Function ---
+        function allocateAllItems() {
+            // 1. Read and Validate Inputs (Common Setup)
+            const tableDataInput = document.getElementById('tableData').value.trim();
+            const lpdCombinationInput = document.getElementById('lpdCombinationInput').value.trim();
+            const maxSlotsInput = document.getElementById('maxSlots').value;
+            const statusAreaDiv = document.getElementById('statusArea');
+            const strategyComparisonDiv = document.getElementById('strategyComparison'); // Get new div
+            const allocationResultsDiv = document.getElementById('allocationResults');
+            const cumulativeUsageDiv = document.getElementById('cumulativeUsage');
+            const adjustmentLogDiv = document.getElementById('adjustmentLog');
+            const lpdBreakdownDiv = document.getElementById('lpdBreakdown');
+            const finalSummaryTableDiv = document.getElementById('finalSummaryTableDiv');
+            const variationLogDiv = document.getElementById('variationLog');
+
+            // Clear previous results
+            statusAreaDiv.innerHTML = '';
+            strategyComparisonDiv.innerHTML = ''; // Clear comparison div
+            allocationResultsDiv.innerHTML = `Processing...`;
+            cumulativeUsageDiv.innerHTML = '';
+            adjustmentLogDiv.innerHTML = '';
+            variationLogDiv.innerHTML = '';
+            lpdBreakdownDiv.innerHTML = '';
+            finalSummaryTableDiv.innerHTML = '';
+
+            // Basic Input Validation
+            // ... (validation logic same as before) ...
+            if (!tableDataInput) { statusAreaDiv.innerHTML = '<span class="error">Error: Table data cannot be empty.</span>'; allocationResultsDiv.innerHTML = ''; return; }
+            if (!lpdCombinationInput) { statusAreaDiv.innerHTML = '<span class="error">Error: LPD Combination input cannot be empty.</span>'; allocationResultsDiv.innerHTML = ''; return; }
+            let maxSlots = Infinity; let maxSlotsIsFinite = false;
+            if (maxSlotsInput) { maxSlots = parseInt(maxSlotsInput); if (isNaN(maxSlots) || maxSlots < 1) { statusAreaDiv.innerHTML = '<span class="error">Invalid Max Slots per LPD.</span>'; allocationResultsDiv.innerHTML = ''; return; } maxSlotsIsFinite = true; }
+            const maxSlotsDisplay = maxSlotsIsFinite ? maxSlots : "Unlimited";
+            let userLpdCombination; try { /* ... LPD parsing ... */ userLpdCombination = JSON.parse(lpdCombinationInput.replace(/\s/g, '')); if (!Array.isArray(userLpdCombination) || !userLpdCombination.every(item => typeof item === 'number' && item > 0) || userLpdCombination.length === 0) { throw new Error("Invalid LPD array."); } userLpdCombination = [...new Set(userLpdCombination)].sort((a, b) => a - b); } catch (e) { statusAreaDiv.innerHTML = `<span class="error">Error parsing LPD Combination: ${e.message}</span>`; allocationResultsDiv.innerHTML = ''; return; }
+            const lines = tableDataInput.split('\n'); const originalItemsUnsorted = []; let parseErrors = []; lines.forEach((line, index) => { /* ... Item parsing ... */ line = line.trim(); if (!line) return; let parts = line.split('\t'); let details = ''; if (parts.length < 2) { parts = line.split(/\s+/); } if (parts.length < 2) { parseErrors.push(`L${index + 1}: Cannot split: "${line}"`); return; } const amountStr = parts[parts.length - 1].replace(/,/g, ''); details = parts.slice(0, -1).join(parts.length > 2 ? '\t' : ' '); const amount = parseInt(amountStr); if (isNaN(amount)) { parseErrors.push(`L${index + 1}: Amount NaN "${parts[parts.length - 1]}" for "${details}"`); return; } if (amount < 0) { parseErrors.push(`L${index + 1}: Amount negative "${amount}" for "${details}"`); return; } originalItemsUnsorted.push({ details: details, amount: amount, originalIndex: index }); }); if (parseErrors.length > 0) { statusAreaDiv.innerHTML = `<span class="error">Table Data Parse Errors:</span>\n${parseErrors.join('\n')}`; allocationResultsDiv.innerHTML = ''; return; } if (originalItemsUnsorted.length === 0) { statusAreaDiv.innerHTML = `<span class="error">Error: No items parsed.</span>`; allocationResultsDiv.innerHTML = ''; return; }
+
+
+            // 2. Define Sorting Strategies
+            const strategies = [
+                { name: "Original Input Order", sortFn: (items) => [...items] },
+                { name: "Amount Ascending", sortFn: (items) => [...items].sort((a, b) => a.amount - b.amount) },
+                { name: "Amount Descending", sortFn: (items) => [...items].sort((a, b) => b.amount - a.amount) },
+                { name: "Details Ascending (A-Z)", sortFn: (items) => [...items].sort((a, b) => a.details.localeCompare(b.details)) },
+                { name: "Details Descending (Z-A)", sortFn: (items) => [...items].sort((a, b) => b.details.localeCompare(a.details)) },
+            ];
+
+            let strategyResults = []; // Store results of ALL strategies
+            let firstSuccessfulResult = null; // Store the first result meeting the limit
+            let firstSuccessfulStrategyName = "";
+
+            // 3. Iterate Through ALL Strategies
+            statusAreaDiv.innerHTML = `Running allocation for all ${strategies.length} strategies...`;
+            for (const strategy of strategies) {
+                console.log(`--- Running Strategy: ${strategy.name} ---`);
+                statusAreaDiv.innerHTML = `Running allocation strategy: <span class="info">${strategy.name}</span>...`; // Update status per strategy
+
+                const currentItemsOrdered = strategy.sortFn(originalItemsUnsorted).map((item, index) => ({
+                    ...item,
+                    index: index // Index within this sorted run
+                }));
+
+                // Run the core allocation process
+                const result = runAllocationProcess(currentItemsOrdered, userLpdCombination, maxSlots);
+
+                // Calculate max variation for THIS strategy's result
+                const maxVariation = calculateMaxVariation(currentItemsOrdered, result.itemAllocations);
+                const meetsLimit = maxVariation <= REPROCESS_VARIATION_LIMIT;
+
+                console.log(`--- Strategy ${strategy.name} completed. Max Variation: ${(maxVariation * 100).toFixed(2)}%. Meets Limit: ${meetsLimit}`);
+
+                // Store the full result along with calculated max variation
+                strategyResults.push({
+                    strategyName: strategy.name,
+                    itemsUsed: currentItemsOrdered,
+                    resultData: result, // Contains allocations, usage, slots, logs
+                    maxVariation: maxVariation,
+                    meetsLimit: meetsLimit
+                });
+
+                // Track the FIRST successful strategy
+                if (meetsLimit && !firstSuccessfulResult) {
+                    firstSuccessfulResult = strategyResults[strategyResults.length - 1]; // Store this full result object
+                    firstSuccessfulStrategyName = strategy.name;
+                    console.log(`--- Found first successful strategy: ${strategy.name} ---`);
+                }
+            } // End strategy loop
+
+            // 4. Display Strategy Comparison Summary
+            let comparisonHTML = `<div class="comparison-title">--- Strategy Comparison Summary (Target Limit: ±${(REPROCESS_VARIATION_LIMIT * 100).toFixed(0)}%) ---</div>`;
+            comparisonHTML += `<table id="comparisonTable">`;
+            comparisonHTML += `<thead><tr><th>Strategy</th><th>Max Variation (%)</th><th>Met Limit?</th></tr></thead>`;
+            comparisonHTML += `<tbody>`;
+
+            strategyResults.forEach(res => {
+                let maxVarStr = "";
+                if (res.maxVariation === Infinity) {
+                    maxVarStr = '<span class="violation">Infinity (Zero Target Mismatch)</span>';
+                } else {
+                    maxVarStr = (res.maxVariation * 100).toFixed(1) + '%';
+                     if (!res.meetsLimit) {
+                        maxVarStr = `<span class="warning">${maxVarStr}</span>`; // Use warning for >30% in summary
+                     }
+                }
+
+                comparisonHTML += `<tr>`;
+                comparisonHTML += `<td>${res.strategyName}</td>`;
+                comparisonHTML += `<td>${maxVarStr}</td>`;
+                comparisonHTML += `<td>${res.meetsLimit ? '<span class="success">Yes</span>' : '<span class="error">No</span>'}</td>`;
+                comparisonHTML += `</tr>`;
+            });
+
+            comparisonHTML += `</tbody></table>`;
+            strategyComparisonDiv.innerHTML = comparisonHTML;
+
+
+            // 5. Select and Display Detailed Results
+            const finalResultToShow = firstSuccessfulResult || strategyResults[strategyResults.length - 1]; // Use first success or last attempt
+
+            if (!finalResultToShow) {
+                statusAreaDiv.innerHTML = `<span class="error">Error: No allocation results generated after running strategies.</span>`;
+                allocationResultsDiv.innerHTML = '';
+                return;
+            }
+
+             // Update status message based on outcome
+            if (firstSuccessfulResult) {
+                 statusAreaDiv.innerHTML = `<span class="success">Displaying detailed results for the first successful strategy: ${finalResultToShow.strategyName}</span> (Met ±${(REPROCESS_VARIATION_LIMIT * 100).toFixed(0)}% limit)`;
+             } else {
+                 statusAreaDiv.innerHTML = `<span class="warning">Warning: None of the strategies met the ±${(REPROCESS_VARIATION_LIMIT * 100).toFixed(0)}% variation limit. Displaying detailed results for the last attempted strategy: ${finalResultToShow.strategyName}.</span>`;
+             }
+
+
+            // --- Display Outputs using finalResultToShow ---
+            const finalItems = finalResultToShow.itemsUsed;
+            const finalAllocations = finalResultToShow.resultData.itemAllocations;
+            const finalCumulativeUsage = finalResultToShow.resultData.cumulativeUsage;
+            const finalRemainingSlots = finalResultToShow.resultData.remainingSlots;
+            const finalLogs = finalResultToShow.resultData.logs;
+
+             // Display Logs for the selected strategy
+             adjustmentLogDiv.innerHTML = finalLogs.adjustment;
+             variationLogDiv.innerHTML = finalLogs.variation;
+
+            // Display Final Allocation Results (Detailed view for the selected strategy)
+             // ... (Keep the exact same display logic for allocationResultsDiv as v0.1.6) ...
+             let finalAllocationHTML = `--- Final Item Allocations (Using Strategy: ${finalResultToShow.strategyName}) ---`;
+             finalItems.forEach((item, i) => {
+                 finalAllocationHTML += `<div class="item-allocation">`;
+                 finalAllocationHTML += `<b>${i + 1}. ${item.details}</b> (Original Line: ${item.originalIndex + 1}, Target Amount: ${item.amount})\n`;
+                 const finalAlloc = finalAllocations[i];
+                 if (finalAlloc.error) { finalAllocationHTML += `<span class="error">Allocation Error: ${finalAlloc.error}</span>\n`; }
+                 else if (finalAlloc.sum !== undefined) {
+                     const finalPercDiff = item.amount > 0 ? (finalAlloc.difference / item.amount) : (finalAlloc.sum === 0 ? 0 : Infinity);
+                     let diffClass = finalAlloc.difference === 0 ? 'zero-diff' : (finalAlloc.difference > 0 ? 'positive-diff' : 'negative-diff');
+                     let diffSign = finalAlloc.difference > 0 ? '+' : '';
+                     finalAllocationHTML += `<span class="highlight">Final Achieved Sum: ${finalAlloc.sum}</span> (Final Diff: <span class="${diffClass}">${diffSign}${finalAlloc.difference.toFixed(0)}</span>`;
+                     if (item.amount > 0) {
+                        const absFinalPercDiff = Math.abs(finalPercDiff);
+                        finalAllocationHTML += ` / ${(finalPercDiff * 100).toFixed(1)}%`;
+                        // Highlight based on 30% limit in detailed view as well
+                        if (absFinalPercDiff > REPROCESS_VARIATION_LIMIT) { finalAllocationHTML += ` <span class="violation">Exceeds ±${(REPROCESS_VARIATION_LIMIT * 100).toFixed(0)}%</span>`; }
+                        else if (absFinalPercDiff > VARIATION_LIMIT_PASS_3) { finalAllocationHTML += ` <span class="warning">(>±${(VARIATION_LIMIT_PASS_3 * 100).toFixed(0)}%)</span>`; }
+                     } else if (finalAlloc.sum !== 0) { finalAllocationHTML += ` <span class="violation">Non-zero sum for zero target</span>`; }
+                     finalAllocationHTML += `)\n`;
+                     if (finalAlloc.combination.length > 0) {
+                         finalAllocationHTML += `   Final Combination (${finalAlloc.combination.length} items): [${finalAlloc.combination.join(', ')}]`;
+                         if (finalAlloc.finalUsageCounts && Object.keys(finalAlloc.finalUsageCounts).length > 0) { finalAllocationHTML += `\n   Usage Counts: { ${Object.entries(finalAlloc.finalUsageCounts).map(([lpd, count]) => `"${lpd}": ${count}`).join(', ')} }`; }
+                         else { finalAllocationHTML += `\n   Usage Counts: {}`; }
+                     } else { finalAllocationHTML += `   (No LPDs needed)`; }
+                 } else { finalAllocationHTML += "<span class='error'>Could not determine allocation result.</span>"; }
+                 finalAllocationHTML += `</div>`;
+             });
+             allocationResultsDiv.innerHTML = finalAllocationHTML;
+
+
+            // Display Cumulative Usage Summary (for the selected strategy)
+            // ... (Keep the exact same display logic for cumulativeUsageDiv as v0.1.6) ...
+            let usageSummaryHTML = `<div class="usage-summary">--- Final Cumulative LPD Usage Summary (Strategy: ${finalResultToShow.strategyName}, Max Slots: ${maxSlotsDisplay}) ---`;
+            usageSummaryHTML += "<ul>"; userLpdCombination.forEach(lpd => { const used = finalCumulativeUsage[lpd] || 0; const remaining = finalRemainingSlots[lpd]; usageSummaryHTML += `<li>LPD ${lpd}: Used ${used} times`; if (maxSlotsIsFinite) { usageSummaryHTML += `, Remaining Slots: ${remaining}`; if (remaining < 0) { usageSummaryHTML += ` <span class="error">(Slot Error!)</span>`; } else if (remaining > 0 && used + remaining !== maxSlots) { console.warn(`Slot count mismatch for LPD ${lpd}: Used ${used}, Remaining ${remaining}, Max ${maxSlots}`); usageSummaryHTML += ` <span class="warning">(Count Mismatch?)</span>`; } } usageSummaryHTML += `</li>`; }); usageSummaryHTML += "</ul></div>";
+            cumulativeUsageDiv.innerHTML = usageSummaryHTML;
+
+
+             // Build and Display LPD Usage Breakdown by Item (for the selected strategy)
+             // ... (Keep the exact same display logic for lpdBreakdownDiv as v0.1.6) ...
+             let lpdBreakdownHTML = `<div class="lpd-section-title">--- LPD Usage Breakdown by Item (Strategy: ${finalResultToShow.strategyName}) ---`;
+             const lpdUsageByItem = new Map(); userLpdCombination.forEach(lpd => { lpdUsageByItem.set(lpd, []); });
+             finalItems.forEach((item, i) => { const finalAlloc = finalAllocations[i]; if (!finalAlloc.error && finalAlloc.finalUsageCounts) { for (const [lpdValueStr, count] of Object.entries(finalAlloc.finalUsageCounts)) { const lpdValue = parseInt(lpdValueStr); if (count > 0 && lpdUsageByItem.has(lpdValue)) { lpdUsageByItem.get(lpdValue).push({ details: item.details, count: count, originalIndex: item.originalIndex }); } } } });
+             userLpdCombination.forEach(lpd => { const itemsUsingLpd = lpdUsageByItem.get(lpd); const totalCountForLpd = itemsUsingLpd.reduce((sum, item) => sum + item.count, 0); lpdBreakdownHTML += `<div class="lpd-section">`; lpdBreakdownHTML += `<span class="lpd-section-title">LPD: ${lpd}</span>`; if (itemsUsingLpd.length > 0) { lpdBreakdownHTML += `<ul class="lpd-item-list">`; itemsUsingLpd.sort((a,b)=>a.details.localeCompare(b.details)).forEach(itemUse => { lpdBreakdownHTML += `<li>${itemUse.details}: ${itemUse.count} time(s)</li>`; }); lpdBreakdownHTML += `</ul>`; lpdBreakdownHTML += `<div class="lpd-total">Total Times Used: ${totalCountForLpd}</div>`; } else { lpdBreakdownHTML += `\n   (Not used in final allocations)`; } lpdBreakdownHTML += `</div>`; });
+             lpdBreakdownDiv.innerHTML = lpdBreakdownHTML;
+
+
+             // Build and Display Final Summary Table (for the selected strategy, original item order)
+             // ... (Keep the exact same display logic for finalSummaryTableDiv as v0.1.6) ...
+              let summaryTableHTML = `<div class="lpd-section-title">--- Final Allocation Summary (Strategy: ${finalResultToShow.strategyName}) ---</div>`;
+              summaryTableHTML += `<table id="finalSummaryTable">`;
+              summaryTableHTML += `<thead><tr><th>Sabor (Original Order)</th><th>Quantidade</th><th>Empenho</th><th>Dif</th><th>Var (%)</th></tr></thead>`;
+              summaryTableHTML += `<tbody>`;
+              const allocationMap = new Map(); finalItems.forEach((item, i) => { allocationMap.set(item.originalIndex, {itemData: item, allocationData: finalAllocations[i]}); });
+              originalItemsUnsorted.forEach(originalItem => { const resultEntry = allocationMap.get(originalItem.originalIndex); let sabor = originalItem.details; let quantidade = originalItem.amount; let empenho = 'N/A'; let difHtml = 'N/A'; let varHtml = 'N/A'; if (resultEntry) { const finalAlloc = resultEntry.allocationData; if (!finalAlloc.error && finalAlloc.sum !== undefined) { empenho = finalAlloc.sum.toFixed(0); const dif = finalAlloc.difference; let difClass = dif === 0 ? 'zero-diff' : (dif > 0 ? 'positive-diff' : 'negative-diff'); let difSign = dif > 0 ? '+' : ''; difHtml = `<span class="${difClass}">${difSign}${dif.toFixed(0)}</span>`; if (quantidade > 0) { const percentage = (dif / quantidade); const percentageFmt = (percentage * 100).toFixed(1) + '%'; varHtml = percentageFmt; if (Math.abs(percentage) > REPROCESS_VARIATION_LIMIT) { varHtml = `<span class="violation">${percentageFmt}</span>`; } else if (Math.abs(percentage) > VARIATION_LIMIT_PASS_3) { varHtml = `<span class="warning">${percentageFmt}</span>`; } } else if (empenho !== '0') { varHtml = `<span class="violation">N/A (Non-zero sum)</span>`; } else { varHtml = '0.0%'; } } else if (finalAlloc.error) { empenho = `<span class="error">Error</span>`; difHtml = `<span class="error">Error</span>`; varHtml = `<span class="error">Error</span>`; } } summaryTableHTML += `<tr><td>${sabor}</td><td>${quantidade}</td><td>${empenho}</td><td>${difHtml}</td><td>${varHtml}</td></tr>`; });
+              summaryTableHTML += `</tbody></table>`;
+              finalSummaryTableDiv.innerHTML = summaryTableHTML;
+
+
+        } // End allocateAllItems
+
+    </script>
+
+</body>
+</html>

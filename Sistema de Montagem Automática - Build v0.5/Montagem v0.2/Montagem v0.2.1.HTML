@@ -1,0 +1,295 @@
+--- START OF FILE Montagem v0.1.16.HTML ---
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LPD Combination & Multi-Item Allocation</title>
+    <style>
+         /* Basic styling */
+         body { font-family: sans-serif; padding: 20px; }
+        label { display: block; margin-top: 10px; margin-bottom: 5px; font-weight: bold; }
+        textarea { width: 90%; min-height: 150px; margin-bottom: 10px; font-family: monospace; }
+        input[type="number"] { padding: 8px; margin-bottom: 10px; width: 120px; }
+        button { padding: 10px 15px; cursor: pointer; background-color: #007bff; color: white; border: none; border-radius: 4px; margin-top: 10px; }
+        button:hover { background-color: #0056b3; }
+        #results, #allocationResults { margin-top: 20px; padding: 15px; border: 1px solid #ccc; background-color: #f9f9f9; white-space: pre-wrap; font-family: monospace; }
+        .error { color: red; font-weight: bold; }
+        .info { color: blue; }
+        .input-group { margin-bottom: 15px; }
+        .highlight { background-color: yellow; font-weight: bold; }
+        .candidate-section { border-left: 3px solid #ddd; padding-left: 10px; margin-top: 5px; margin-bottom: 5px; }
+        .item-allocation { border-top: 1px dashed #aaa; margin-top: 10px; padding-top: 10px;} /* Style for each item's allocation */
+    </style>
+</head>
+<body>
+
+    <h1>Find LPD Combination & Allocate All Input Items</h1>
+
+    <!-- Input fields -->
+    <div class="input-group">
+        <label for="tableData">Table Data (Details + Amount, one per line):</label>
+        <textarea id="tableData" placeholder="Example:
+Item A	3000
+Item B	70000
+Item C	40000
+..."></textarea>
+    </div>
+    <div class="input-group">
+        <label for="targetSum">Target Sum for LPD Combination (Exact):</label>
+        <input type="number" id="targetSum" placeholder="e.g., 36500">
+    </div>
+    <div class="input-group">
+        <label for="combinationSize">Number of Distinct LPDs (>=2000) in Combination:</label>
+        <input type="number" id="combinationSize" value="4" min="2">
+    </div>
+    <div class="input-group">
+        <label for="maxSlots">Max Slots per LPD in Allocation:</label>
+        <input type="number" id="maxSlots" placeholder="e.g., 3 (blank=unlimited)" min="1">
+    </div>
+    <!-- Removed Special Number Input -->
+    <button onclick="processAll()">Find Combination & Allocate Items</button>
+
+    <!-- Output areas -->
+    <div id="results">LPD Combination results will appear here...</div>
+    <div id="allocationResults">Item Allocation results will appear here...</div>
+
+
+    <script>
+        // Global variable to store the best LPD combination found
+        let lastFoundLpdCombination = null;
+
+        // --- CONFIGURATION RULES ---
+        const MIN_LPD_VALUE = 2000;
+        const OBLIGATORY_RANGE = 500;
+        // --- ---
+
+        // --- Recursive Combination Finder ---
+        // Function remains the same as v0.1.15
+        function findSumCombinationRecursive(lpdValueObjectsToSearch, target, k, startIndex, currentCombinationValues) {
+            if (currentCombinationValues.length === k) {
+                const currentSum = currentCombinationValues.reduce((sum, item) => sum + item, 0);
+                if (Math.abs(currentSum - target) < 0.01) { return [...currentCombinationValues]; } return null;
+            }
+            if (startIndex >= lpdValueObjectsToSearch.length || currentCombinationValues.length > k || lpdValueObjectsToSearch.length - startIndex < k - currentCombinationValues.length) { return null; }
+            for (let i = startIndex; i < lpdValueObjectsToSearch.length; i++) {
+                const currentLpdValue = lpdValueObjectsToSearch[i].value;
+                if (!currentCombinationValues.includes(currentLpdValue)) {
+                    currentCombinationValues.push(currentLpdValue);
+                    const result = findSumCombinationRecursive(lpdValueObjectsToSearch, target, k, i + 1, currentCombinationValues);
+                    if (result) { return result; }
+                    currentCombinationValues.pop(); // Backtrack
+                }
+            }
+            return null;
+        }
+
+        // --- Find Closest Sum (Allocation DP) ---
+        // Function remains the same as v0.1.15
+        function findClosestSumWithRepetitionAndSlots(lpdArray, target, maxSlotsPerLpd) {
+             if (!lpdArray || lpdArray.length === 0) { return { sum: 0, difference: Math.abs(target), combination: [], error: "No LPDs provided" }; }
+             if (target < 0) { return { sum: 0, difference: Math.abs(target), combination: [], error: "Negative target" }; }
+             if (maxSlotsPerLpd === null || isNaN(maxSlotsPerLpd) || maxSlotsPerLpd < 1) { maxSlotsPerLpd = Infinity; }
+             lpdArray = [...new Set(lpdArray)].sort((a, b) => a - b);
+             if (lpdArray.length === 0 || lpdArray[0] <= 0) { return { sum: 0, difference: Math.abs(target), combination: [], error: "Invalid LPDs for allocation" }; }
+             const smallestLpd = lpdArray[0]; const maxSum = target + smallestLpd -1; const dp = new Array(maxSum + 1).fill(null); dp[0] = { count: 0, usage: {}, lastLpd: null };
+             for (let i = 1; i <= maxSum; i++) {
+                 let bestStateForI = null;
+                 for (const lpd of lpdArray) {
+                     const prevSum = i - lpd;
+                     if (prevSum >= 0 && dp[prevSum] !== null) {
+                         const prevState = dp[prevSum]; const currentLpdUsage = (prevState.usage[lpd] || 0) + 1;
+                         if (currentLpdUsage <= maxSlotsPerLpd) {
+                             const newTotalCount = prevState.count + 1;
+                             if (bestStateForI === null || newTotalCount < bestStateForI.count) { const newUsage = { ...prevState.usage, [lpd]: currentLpdUsage }; bestStateForI = { count: newTotalCount, usage: newUsage, lastLpd: lpd }; }
+                         } } } dp[i] = bestStateForI;
+             }
+             let minDiff = Infinity; let closestSum = -1; let bestReachableState = null;
+             for (let i = target; i >= 0; i--) { if (dp[i] !== null) { const diff = target - i; if (diff < minDiff || (diff === minDiff && dp[i].count < bestReachableState.count)) { minDiff = diff; closestSum = i; bestReachableState = dp[i]; } if (diff > minDiff && closestSum !== -1) break; } }
+             for (let i = target + 1; i <= maxSum; i++) { if (dp[i] !== null) { const diff = i - target; if (diff < minDiff || (diff === minDiff && dp[i].count < bestReachableState.count)) { minDiff = diff; closestSum = i; bestReachableState = dp[i]; } if (diff >= minDiff && closestSum !== -1) break; } }
+             if (closestSum === -1) { if (target === 0 && dp[0] !== null) { closestSum = 0; minDiff = 0; bestReachableState = dp[0]; } else { closestSum = 0; minDiff = Math.abs(target - 0); bestReachableState = dp[0] || { count: 0, usage: {}, lastLpd: null }; } }
+             const combination = []; let currentSum = closestSum; let currentState = bestReachableState; let safetyCounter = 0; const maxLoops = (currentState?.count || 0) + lpdArray.length + 100;
+             while (currentSum > 0 && currentState?.lastLpd && safetyCounter < maxLoops) {
+                 const usedLpd = currentState.lastLpd; combination.push(usedLpd); const prevSum = currentSum - usedLpd;
+                 if (prevSum >= 0 && dp[prevSum] !== null) { currentState = dp[prevSum]; currentSum = prevSum; }
+                 else { return { sum: closestSum, difference: minDiff, combination: combination.sort((a,b)=>a-b), error: `Backtracking state missing for ${prevSum}` }; }
+                 safetyCounter++;
+             }
+             if (safetyCounter >= maxLoops) { return { sum: closestSum, difference: minDiff, combination: combination.sort((a,b)=>a-b), error: "Backtracking limit" }; }
+             if (currentSum !== 0 && closestSum !== 0) { return { sum: closestSum, difference: minDiff, combination: combination.sort((a,b)=>a-b), error: `Backtracking incomplete (final sum ${currentSum})` }; }
+             const reconstructedSum = combination.reduce((a, b) => a + b, 0);
+             if (reconstructedSum !== closestSum) { return { sum: closestSum, difference: minDiff, combination: combination.sort((a,b)=>a-b), error: `Reconstruction mismatch (${reconstructedSum} != ${closestSum})` }; }
+             const finalUsageCheck = {}; for(const lpd of combination) { finalUsageCheck[lpd] = (finalUsageCheck[lpd] || 0) + 1; if (finalUsageCheck[lpd] > maxSlotsPerLpd) { return { sum: closestSum, difference: minDiff, combination: combination.sort((a,b)=>a-b), error: `Slot limit violated for LPD ${lpd}` }; } }
+             return { sum: closestSum, difference: minDiff, combination: combination.sort((a,b)=>a-b) };
+        }
+
+
+        // --- Main Processing Function ---
+        function processAll() {
+            // Read inputs
+            const tableDataInput = document.getElementById('tableData').value.trim();
+            const targetSumInput = document.getElementById('targetSum').value;
+            const combinationSizeInput = document.getElementById('combinationSize').value;
+            const maxSlotsInput = document.getElementById('maxSlots').value;
+            // Removed specialNumberInput reading
+            const resultsDiv = document.getElementById('results');
+            const allocationResultsDiv = document.getElementById('allocationResults');
+
+            resultsDiv.innerHTML = `Processing LPD Combination (>= ${MIN_LPD_VALUE}, Exact Sum, Max Freq near Min Amount)...`;
+            allocationResultsDiv.innerHTML = 'Waiting for LPD Combination...';
+            lastFoundLpdCombination = null;
+
+            // Validate inputs
+             if (!tableDataInput) { resultsDiv.innerHTML = '<span class="error">Error: Table data cannot be empty.</span>'; return; }
+            let maxSlots = Infinity;
+            if (maxSlotsInput) { maxSlots = parseInt(maxSlotsInput); if (isNaN(maxSlots) || maxSlots < 1) { allocationResultsDiv.innerHTML = '<span class="error">Error: Invalid Max Slots per LPD.</span>'; resultsDiv.innerHTML = '<span class="error">Input Error.</span>'; return; } }
+            const exactTargetSum = parseInt(targetSumInput);
+            const combinationSize = parseInt(combinationSizeInput);
+            if (isNaN(exactTargetSum)) { resultsDiv.innerHTML = '<span class="error">Error: Invalid Target Sum.</span>'; return; }
+            if (isNaN(combinationSize) || combinationSize < 2) { resultsDiv.innerHTML = `<span class="error">Error: Invalid Number of LPDs (must be >= 2).</span>`; return; }
+
+
+            // 1. Parse Table Data & Find Min Amount - Store original items
+            const lines = tableDataInput.split('\n');
+            const lpdFrequencies = {};
+            const originalItems = []; // *** Store {details, amount} for each line ***
+            let parseErrors = [];
+            let minAmountFound = Infinity;
+
+            lines.forEach((line, index) => {
+                line = line.trim(); if (!line) return;
+                let parts = line.split('\t'); let details = '';
+                if (parts.length < 2) { parts = line.split(/\s+/); }
+
+                if (parts.length < 2) { parseErrors.push(`L${index + 1}: Cannot split: "${line}"`); return; }
+
+                const amountStr = parts[parts.length - 1]; // Amount is last part
+                details = parts.slice(0, -1).join(parts.length > 2 ? ' ' : ''); // Join remaining parts as details
+
+                const amount = parseInt(amountStr);
+                if (isNaN(amount)) { parseErrors.push(`L${index + 1}: Amount NaN "${amountStr}" for "${details}"`); return; }
+                if (amount <= 0) { parseErrors.push(`L${index + 1}: Amount <=0 "${amount}" for "${details}"`); return; }
+                if (amount % 2 !== 0) { parseErrors.push(`L${index + 1}: Amount odd "${amount}" for "${details}"`); return; }
+                if (amount < minAmountFound) { minAmountFound = amount; }
+
+                // Store original item details and amount
+                originalItems.push({ details: details, amount: amount });
+
+                // Calculate LPD and add to frequencies if valid
+                const lpd = amount / 2;
+                if (lpd >= MIN_LPD_VALUE) { lpdFrequencies[lpd] = (lpdFrequencies[lpd] || 0) + 1; }
+            });
+
+            if (parseErrors.length > 0) { resultsDiv.innerHTML = `<span class="error">Parse Errors:</span>\n${parseErrors.join('\n')}`; allocationResultsDiv.innerHTML = ''; return; }
+            if (minAmountFound === Infinity) { resultsDiv.innerHTML = `<span class="error">Error: No valid amounts found.</span>`; allocationResultsDiv.innerHTML = ''; return; }
+            if (originalItems.length === 0) { resultsDiv.innerHTML = `<span class="error">Error: No items parsed successfully.</span>`; allocationResultsDiv.innerHTML = ''; return; }
+
+
+            // 1.5 Identify ALL Obligatory Candidates
+            // ... (Logic unchanged from v0.1.15) ...
+            let obligatoryLog = [`Minimum Amount in table: ${minAmountFound}`];
+            const uniqueValidLpdListWithFreq = Object.entries(lpdFrequencies).map(([lpd, freq]) => ({ value: parseInt(lpd), frequency: freq }));
+            const obligatoryCandidates = uniqueValidLpdListWithFreq.filter(lpdObj => { const diff = Math.abs(lpdObj.value - minAmountFound); return diff <= OBLIGATORY_RANGE; }).sort((a, b) => a.value - b.value);
+            obligatoryLog.push(`Valid LPDs Found (>=${MIN_LPD_VALUE}): [${uniqueValidLpdListWithFreq.map(l=>l.value).sort((a,b)=>a-b).join(', ')}]`);
+            obligatoryLog.push(`Found ${obligatoryCandidates.length} candidate LPD(s) within +/- ${OBLIGATORY_RANGE} of Min Amount (${minAmountFound}): [${obligatoryCandidates.map(c=>c.value).join(', ')}]`);
+            if (obligatoryCandidates.length === 0) { resultsDiv.innerHTML = `<span class="error">Error: No valid LPD found near Min Amount.</span>\n${obligatoryLog.join('\n')}`; allocationResultsDiv.innerHTML = ''; return; }
+
+
+            // 1.7 Sort full valid list by frequency
+            // ... (Logic unchanged from v0.1.15) ...
+            uniqueValidLpdListWithFreq.sort((a, b) => { if (b.frequency !== a.frequency) return b.frequency - a.frequency; return b.value - a.value; });
+            let frequencyLog = [`Valid LPDs Sorted by Frequency (Value(Frequency)): ${uniqueValidLpdListWithFreq.map(l => `${l.value}(${l.frequency})`).join(', ')}`];
+
+
+            // 2. Find LPD Combination - Loop through Candidates, Find EXACT sum, Compare Freq
+            // ... (Logic unchanged from v0.1.15, finds bestCombinationFound) ...
+            const neededOtherLpds = combinationSize - 1;
+            let overallSearchLog = [`--- Obligatory Candidate Selection ---`];
+            overallSearchLog.push(...obligatoryLog);
+            overallSearchLog.push(`--- Available LPDs ---`);
+            overallSearchLog.push(...frequencyLog);
+            overallSearchLog.push(`--- Combination Search ---`);
+            overallSearchLog.push(`Searching for combination of size ${combinationSize} summing EXACTLY to ${exactTargetSum}, using each candidate LPD near minimum amount...`);
+            let bestCombinationFound = null;
+            let bestCombinationFrequencyScore = -1;
+            function getFrequencyScore(combination) { let score = 0; for (const lpdValue of combination) { score += (lpdFrequencies[lpdValue] || 0); } return score; }
+            for (const currentObligatoryCandidate of obligatoryCandidates) {
+                const currentObligatoryLpdValue = currentObligatoryCandidate.value;
+                overallSearchLog.push(`<div class="candidate-section">=== Trying with Obligatory Candidate: ${currentObligatoryLpdValue} ===`);
+                const searchLpdList = uniqueValidLpdListWithFreq.filter(lpdObj => lpdObj.value !== currentObligatoryLpdValue);
+                if (neededOtherLpds > 0 && searchLpdList.length < neededOtherLpds) { overallSearchLog.push(`   Skipping: Not enough other LPDs available.`); overallSearchLog.push(`</div>`); continue; }
+                const targetForRecursion = exactTargetSum - currentObligatoryLpdValue;
+                overallSearchLog.push(`   Target sum for remaining ${neededOtherLpds} LPDs: ${exactTargetSum} - ${currentObligatoryLpdValue} = ${targetForRecursion}`);
+                let foundKMinus1Combination = null;
+                if (targetForRecursion < 0 && neededOtherLpds > 0) { overallSearchLog.push(`   Skipping: Target for remaining LPDs is negative.`); }
+                else if (neededOtherLpds >= 0) { foundKMinus1Combination = findSumCombinationRecursive(searchLpdList, targetForRecursion, neededOtherLpds, 0, []); }
+                if (foundKMinus1Combination !== null) {
+                    const currentFullCombination = [...foundKMinus1Combination, currentObligatoryLpdValue].sort((a,b)=>a-b);
+                    const currentFrequencyScore = getFrequencyScore(currentFullCombination);
+                    overallSearchLog.push(`   <span class="highlight">Found Exact Sum Combination: [${currentFullCombination.join(', ')}] (Sum: ${exactTargetSum}, Freq Score: ${currentFrequencyScore})</span>`);
+                    if (bestCombinationFound === null || currentFrequencyScore > bestCombinationFrequencyScore) {
+                        overallSearchLog.push(`   <span class="info">   ** New Best Combination Found (Higher Freq Score) **</span>`);
+                        bestCombinationFound = currentFullCombination;
+                        bestCombinationFrequencyScore = currentFrequencyScore;
+                    }
+                } else { overallSearchLog.push(`   -> No combination found including ${currentObligatoryLpdValue} that sums exactly to ${exactTargetSum}.`); }
+                overallSearchLog.push(`</div>`);
+            } // End outer loop
+
+
+            // 3. Display Combination Result
+            lastFoundLpdCombination = bestCombinationFound; // Assign the overall best
+
+            if (lastFoundLpdCombination) {
+                // Best Combination found!
+                 resultsDiv.innerHTML = overallSearchLog.join('\n')
+                                 + `\n\n<span class="highlight">Best LPD Combination Found (${combinationSize} LPDs): [${lastFoundLpdCombination.join(', ')}]</span>`
+                                 + `\n(Chosen for highest frequency score among combinations summing exactly to ${exactTargetSum})`
+                                 + `\nTotal Frequency Score: ${bestCombinationFrequencyScore}`;
+            } else {
+                // Failure: No combination found matching exact sum after trying all candidates
+                 resultsDiv.innerHTML = overallSearchLog.join('\n')
+                                    + `\n\n<span class="error">No combination of ${combinationSize} distinct LPDs (>=${MIN_LPD_VALUE}, including one near min amount ${minAmountFound}) found summing EXACTLY to ${exactTargetSum} after trying all valid candidates.</span>`;
+                 allocationResultsDiv.innerHTML = "Allocation cannot proceed as no suitable LPD combination was found.";
+                 return; // Stop processing if no LPD combination was found
+            }
+
+            // 4. *** Allocate Each Original Item ***
+            let allocationResultsHTML = `--- Item Allocations (using LPDs: [${lastFoundLpdCombination.join(', ')}]) ---`;
+            let maxSlotsDisplay = (maxSlots === Infinity) ? "Unlimited" : maxSlots; // Display text for max slots
+
+            originalItems.forEach(item => {
+                 allocationResultsHTML += `<div class="item-allocation">`; // Start block for this item
+                 allocationResultsHTML += `<b>${item.details}</b> (Amount: ${item.amount})\n`;
+                 allocationResultsHTML += `Max Slots per LPD: ${maxSlotsDisplay}\n`;
+
+                 // Call the allocation function for this item's amount
+                 const allocation = findClosestSumWithRepetitionAndSlots(lastFoundLpdCombination, item.amount, maxSlots);
+
+                 // Format allocation result
+                 if (allocation.error) {
+                      allocationResultsHTML += `<span class="error">Allocation Error: ${allocation.error}</span>\n`;
+                      allocationResultsHTML += `Closest Sum Found (before error): ${allocation.sum}\nDifference: ${allocation.difference}`;
+                      if(allocation.combination && allocation.combination.length > 0) { allocationResultsHTML += `\nPartial/Incomplete Combination: [${allocation.combination.sort((a,b)=>a-b).join(', ')}]`; }
+                 } else if (allocation.sum !== undefined) {
+                      allocationResultsHTML += `<span class="highlight">Closest Achievable Sum: ${allocation.sum}</span>\n`;
+                      allocationResultsHTML += `(Difference from Item Amount: ${allocation.difference})\n`;
+                      allocationResultsHTML += `Achieved with combination (${allocation.combination.length} items): [${allocation.combination.join(', ')}]`;
+                      const usageCounts = {}; allocation.combination.forEach(l => usageCounts[l] = (usageCounts[l] || 0) + 1);
+                      allocationResultsHTML += `\nUsage Counts: { ${Object.entries(usageCounts).map(([lpd, count]) => `"${lpd}": ${count}`).join(', ')} }`;
+                 } else {
+                      allocationResultsHTML += "<span class='error'>Could not determine allocation result.</span>";
+                 }
+                 allocationResultsHTML += `</div>`; // End block for this item
+            });
+
+            allocationResultsDiv.innerHTML = allocationResultsHTML;
+
+        } // End processAll
+    </script>
+
+</body>
+</html>
+
+--- END OF FILE Montagem v0.1.16.HTML ---

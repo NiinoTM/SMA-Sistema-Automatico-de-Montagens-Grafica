@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LPD Combination Finder v0.3.0 (Derived Exact Sum)</title>
+    <style>
+        /* Basic styling */
+        body { font-family: sans-serif; padding: 20px; }
+        label { display: block; margin-top: 10px; margin-bottom: 5px; font-weight: bold; }
+        textarea { width: 90%; min-height: 150px; margin-bottom: 10px; font-family: monospace; }
+        input[type="number"] { padding: 8px; margin-bottom: 10px; width: 120px; }
+        button { padding: 10px 15px; cursor: pointer; background-color: #007bff; color: white; border: none; border-radius: 4px; margin-top: 10px; }
+        button:hover { background-color: #0056b3; }
+        #results { margin-top: 20px; padding: 15px; border: 1px solid #ccc; background-color: #f9f9f9; white-space: pre-wrap; font-family: monospace; }
+        .error { color: red; font-weight: bold; }
+        .info { color: blue; }
+        .success { color: green; font-weight: bold; }
+        .input-group { margin-bottom: 15px; }
+        .highlight { background-color: yellow; font-weight: bold; }
+        .target-section { border-top: 2px solid #aaa; padding-top: 10px; margin-top: 15px; }
+        .candidate-section { border-left: 3px solid #ddd; padding-left: 10px; margin-top: 5px; margin-bottom: 5px; }
+    </style>
+</head>
+<body>
+
+    <h1>LPD Combination Finder (Derived Exact Sum, Highest Frequency near Min Amount, >=2000)</h1>
+    <p>Calculates a target sum based on Max Slots and total amount, then finds the best combination (highest frequency, including one LPD near min amount) for that target *and* for a fixed target of 36500. Selects the overall best.</p>
+
+    <!-- Input fields -->
+    <div class="input-group">
+        <label for="tableData">Table Data (Details + Amount, one per line):</label>
+        <textarea id="tableData" placeholder="Example:
+Item A	3000 (min amount)
+Item B  4000 (freq 5)
+Item C	7500 (freq 8)
+Item D  10000
+Item E  12000 (freq 3)
+..."></textarea>
+    </div>
+    <div class="input-group">
+        <label for="maxSlots">Max Slots per LPD Instance (Cumulative):</label>
+        <input type="number" id="maxSlots" min="1" placeholder="e.g., 5" required>
+    </div>
+    <!-- Target Sum input removed -->
+    <div class="input-group">
+        <label for="combinationSize">Number of Distinct LPDs (>=2000) in Combination:</label>
+        <input type="number" id="combinationSize" value="4" min="2">
+    </div>
+    <button onclick="findBestCombination()">Find Best Combination</button>
+
+    <!-- Output area -->
+    <div id="results">LPD Combination results will appear here...</div>
+
+    <script>
+        // --- CONFIGURATION RULES ---
+        const MIN_LPD_VALUE = 2000;
+        const OBLIGATORY_RANGE = 500; // Range +/- from minAmountFound
+        const FIXED_TARGET_SUM_TO_TEST = 36500; // Second target sum to always check
+        // --- ---
+
+        // --- Recursive Combination Finder ---
+        // Finds *one* combination of exactly 'k' distinct LPD values from 'lpdValueObjectsToSearch'
+        // that sum precisely to 'target'. Uses backtracking.
+        function findSumCombinationRecursive(lpdValueObjectsToSearch, target, k, startIndex, currentCombinationValues) {
+            // Base Case: Combination size reached
+            if (currentCombinationValues.length === k) {
+                const currentSum = currentCombinationValues.reduce((sum, item) => sum + item, 0);
+                // Use a small tolerance for floating point comparisons, though we expect integers here
+                if (Math.abs(currentSum - target) < 0.01) {
+                    return [...currentCombinationValues]; // Found a valid combination
+                }
+                return null; // Sum doesn't match
+            }
+
+            // Pruning / End Conditions:
+            // 1. Not enough elements left to reach size k
+            // 2. Already exceeded size k (shouldn't happen with proper calls, but good safeguard)
+            // 3. Went past the end of the search list
+            if (startIndex >= lpdValueObjectsToSearch.length ||
+                currentCombinationValues.length > k ||
+                lpdValueObjectsToSearch.length - startIndex < k - currentCombinationValues.length) {
+                return null;
+            }
+
+            // Recursive Step: Try including the element at startIndex 'i'
+            for (let i = startIndex; i < lpdValueObjectsToSearch.length; i++) {
+                const currentLpdValue = lpdValueObjectsToSearch[i].value;
+
+                // Ensure distinct LPD values (check if already included) - Important!
+                // This check prevents using the same LPD value multiple times *in the same combination*.
+                // We are already filtering the `searchLpdList` to exclude the `currentObligatoryLpdValue`,
+                // so this check is for the remaining k-1 LPDs among themselves.
+                if (!currentCombinationValues.includes(currentLpdValue)) {
+                    currentCombinationValues.push(currentLpdValue); // Add to current attempt
+
+                    // Explore further down the list (start from i + 1 to ensure distinct indices/elements are chosen)
+                    const result = findSumCombinationRecursive(lpdValueObjectsToSearch, target, k, i + 1, currentCombinationValues);
+
+                    if (result) {
+                        return result; // Found a solution down this path
+                    }
+
+                    currentCombinationValues.pop(); // Backtrack: Remove the element and try the next one
+                }
+            }
+
+            return null; // No combination found starting from this state
+        }
+
+
+        // --- Main Processing Function for Combination Finder ---
+        function findBestCombination() {
+            // 1. Read and Validate Inputs
+            const tableDataInput = document.getElementById('tableData').value.trim();
+            const maxSlotsInput = document.getElementById('maxSlots').value.trim(); // Now mandatory
+            const combinationSizeInput = document.getElementById('combinationSize').value;
+            const resultsDiv = document.getElementById('results');
+
+            resultsDiv.innerHTML = `Processing LPD Combination (>= ${MIN_LPD_VALUE}, Derived Exact Sum, Max Freq near Min Amount)...`;
+
+            if (!tableDataInput) { resultsDiv.innerHTML = '<span class="error">Error: Table data cannot be empty.</span>'; return; }
+            if (!maxSlotsInput) { resultsDiv.innerHTML = '<span class="error">Error: Max Slots value is required.</span>'; return; } // Validation added
+
+            // 2. Parse Table Data & Calculate SumAmounts
+            const lines = tableDataInput.split('\n');
+            const lpdFrequencies = {}; // Stores frequency of each LPD value { lpdValue: count }
+            let parseErrors = [];
+            let minAmountFound = Infinity;
+            let sumAmounts = 0; // Total sum of all valid amounts in the input table
+
+            lines.forEach((line, index) => {
+                line = line.trim(); if (!line) return; // Skip empty lines
+                let parts = line.split('\t'); // Try tab first
+                if (parts.length < 2) parts = line.split(/\s+/); // Try any whitespace if tab fails
+                if (parts.length < 2) { parseErrors.push(`L${index + 1}: Cannot split line into at least two parts: "${line}"`); return; }
+
+                // Assume amount is the last part
+                const amountStr = parts[parts.length - 1];
+                const amount = parseInt(amountStr); // Use parseInt for whole numbers
+
+                // Validate amount
+                if (isNaN(amount)) { parseErrors.push(`L${index + 1}: Amount is Not a Number (NaN) in "${amountStr}"`); return; }
+                if (amount <= 0) { parseErrors.push(`L${index + 1}: Amount must be positive, got "${amount}"`); return; }
+                if (amount % 2 !== 0) { parseErrors.push(`L${index + 1}: Amount must be even, got "${amount}"`); return; }
+
+                sumAmounts += amount; // Accumulate total amount for target calculation
+
+                // Find minimum amount across all valid entries
+                if (amount < minAmountFound) minAmountFound = amount;
+
+                // Calculate LPD value (amount / 2) and store frequency if >= MIN_LPD_VALUE
+                const lpd = amount / 2;
+                if (lpd >= MIN_LPD_VALUE) {
+                    lpdFrequencies[lpd] = (lpdFrequencies[lpd] || 0) + 1;
+                }
+            });
+
+            if (parseErrors.length > 0) { resultsDiv.innerHTML = `<span class="error">Input Data Parse Errors:</span>\n${parseErrors.join('\n')}`; return; }
+            if (minAmountFound === Infinity) { resultsDiv.innerHTML = `<span class="error">Error: No valid amounts found in the table data.</span>`; return; }
+            if (sumAmounts === 0) { resultsDiv.innerHTML = `<span class="error">Error: Total sum of amounts is zero. Cannot calculate target sum.</span>`; return; }
+
+            // 3. Calculate Derived Target Sum & Validate other inputs
+            const maxSlots = parseInt(maxSlotsInput);
+            if (isNaN(maxSlots) || maxSlots <= 0) {
+                resultsDiv.innerHTML = '<span class="error">Error: Invalid Max Slots value. Must be a positive number.</span>';
+                return;
+            }
+
+            // Calculate the primary target sum based on inputs, rounded to nearest 500
+            const derivedTargetSum1 = Math.round(sumAmounts / maxSlots / 500) * 500;
+
+            const combinationSize = parseInt(combinationSizeInput);
+            if (isNaN(combinationSize) || combinationSize < 2) {
+                resultsDiv.innerHTML = `<span class="error">Error: Invalid Number of LPDs in Combination (must be >= 2).</span>`;
+                return;
+            }
+
+            // Define the target sums to test
+            const targetsToTest = [...new Set([derivedTargetSum1, FIXED_TARGET_SUM_TO_TEST])].sort((a,b)=>a-b); // Test derived and fixed, remove duplicates
+
+            // 4. Prepare LPD Data Structures
+            // Convert frequencies map to an array of objects for easier sorting/filtering
+            const uniqueValidLpdListWithFreq = Object.entries(lpdFrequencies)
+                                      .map(([lpd, freq]) => ({ value: parseInt(lpd), frequency: freq }));
+
+            if (uniqueValidLpdListWithFreq.length < combinationSize) {
+                 resultsDiv.innerHTML = `<span class="error">Error: Not enough unique valid LPDs (>=${MIN_LPD_VALUE}) found (${uniqueValidLpdListWithFreq.length}) to form a combination of size ${combinationSize}.</span>`;
+                 return;
+            }
+
+            // Find LPDs near the minimum amount found in the input table
+            const obligatoryCandidates = uniqueValidLpdListWithFreq.filter(lpdObj => {
+                 const diff = Math.abs(lpdObj.value - minAmountFound);
+                 return diff <= OBLIGATORY_RANGE;
+            }).sort((a, b) => a.value - b.value); // Sort candidates by value for consistent processing order
+
+            // Log initial findings
+            let initialLog = [];
+            initialLog.push(`Minimum Amount Found in Table: ${minAmountFound}`);
+            initialLog.push(`Total Sum of Amounts: ${sumAmounts}`);
+            initialLog.push(`Max Slots: ${maxSlots}`);
+            initialLog.push(`Calculated Target Sum (Rounded to 500): ${derivedTargetSum1}`);
+            initialLog.push(`Fixed Target Sum to Also Test: ${FIXED_TARGET_SUM_TO_TEST}`);
+            initialLog.push(`Target Sums to be Tested: [${targetsToTest.join(', ')}]`);
+            initialLog.push(`Required Combination Size: ${combinationSize}`);
+            initialLog.push(`Valid LPDs Found (>=${MIN_LPD_VALUE}): ${uniqueValidLpdListWithFreq.length} unique values.`); // [${uniqueValidLpdListWithFreq.map(l=>l.value).sort((a,b)=>a-b).join(', ')}]
+            initialLog.push(`Found ${obligatoryCandidates.length} candidate LPD(s) within +/- ${OBLIGATORY_RANGE} of Min Amount (${minAmountFound}): [${obligatoryCandidates.map(c=>c.value).join(', ')}]`);
+
+            if (obligatoryCandidates.length === 0) {
+                 resultsDiv.innerHTML = `<span class="error">Error: No valid LPD (>= ${MIN_LPD_VALUE}) found within +/- ${OBLIGATORY_RANGE} of the Minimum Amount (${minAmountFound}). Cannot proceed.</span>\n${initialLog.join('\n')}`;
+                 return;
+            }
+
+            // Sort the full list primarily by frequency (desc) then value (desc) for the recursive search strategy
+            // This helps find high-frequency combinations potentially faster, though recursion explores branches anyway.
+            uniqueValidLpdListWithFreq.sort((a, b) => {
+                if (b.frequency !== a.frequency) return b.frequency - a.frequency;
+                return b.value - a.value; // Tie-break with higher value
+            });
+            let frequencyLog = `Valid LPDs Sorted by Frequency (Value(Frequency)): ${uniqueValidLpdListWithFreq.map(l => `${l.value}(${l.frequency})`).join(', ')}`;
+
+            // 5. Search for the Best Combination across specified target sums
+            const neededOtherLpds = combinationSize - 1; // How many LPDs to find besides the obligatory one
+            let overallSearchLog = [`--- Initial Setup ---`];
+            overallSearchLog.push(...initialLog);
+            overallSearchLog.push(frequencyLog);
+            overallSearchLog.push(`--- Combination Search ---`);
+
+            let overallBestCombination = null;
+            let overallBestFrequencyScore = -1;
+            let overallBestTargetSum = null;
+
+            // Helper function to calculate the total frequency score of a combination
+            function getFrequencyScore(combination) {
+                 let score = 0;
+                 for (const lpdValue of combination) {
+                     score += (lpdFrequencies[lpdValue] || 0); // Add frequency of each LPD in the combo
+                 }
+                 return score;
+            }
+
+            // --- Search Loop: Iterate through each target sum ---
+            for (const currentTargetSum of targetsToTest) {
+                overallSearchLog.push(`<div class="target-section">--- Testing Target Sum: ${currentTargetSum} ---`);
+                let foundCombinationForThisTarget = false;
+
+                // --- Inner Loop: Iterate through each obligatory candidate ---
+                for (const currentObligatoryCandidate of obligatoryCandidates) {
+                    const currentObligatoryLpdValue = currentObligatoryCandidate.value;
+                    overallSearchLog.push(`<div class="candidate-section">=== Trying Obligatory Candidate: ${currentObligatoryLpdValue} for target ${currentTargetSum} ===`);
+
+                    // Prepare the list of LPDs available for the *remaining* slots, excluding the current obligatory one
+                    const searchLpdList = uniqueValidLpdListWithFreq.filter(lpdObj => lpdObj.value !== currentObligatoryLpdValue);
+
+                    // Check if enough *other* unique LPDs are available
+                    if (neededOtherLpds > 0 && searchLpdList.length < neededOtherLpds) {
+                        overallSearchLog.push(`   Skipping: Not enough other unique LPDs (${searchLpdList.length}) available to find ${neededOtherLpds} more.`);
+                        overallSearchLog.push(`</div>`); // Close candidate-section
+                        continue; // Try next obligatory candidate
+                    }
+
+                    // Calculate the sum needed from the remaining LPDs
+                    const targetForRecursion = currentTargetSum - currentObligatoryLpdValue;
+                    overallSearchLog.push(`   Target sum for remaining ${neededOtherLpds} LPDs: ${currentTargetSum} - ${currentObligatoryLpdValue} = ${targetForRecursion}`);
+
+                    let foundKMinus1Combination = null;
+                    if (targetForRecursion < 0 && neededOtherLpds > 0) {
+                        overallSearchLog.push(`   Skipping: Target for remaining LPDs (${targetForRecursion}) is negative.`);
+                    } else if (neededOtherLpds === 0) { // Special case: combination size is 1 (already handled by input validation >= 2, but good check)
+                         if (Math.abs(targetForRecursion) < 0.01) { // Only the obligatory LPD is needed and its value matches the target
+                             foundKMinus1Combination = []; // Found an empty set for the "others"
+                         } else {
+                             overallSearchLog.push(`   Skipping: Need 0 more LPDs, but obligatory ${currentObligatoryLpdValue} != target ${currentTargetSum}.`);
+                         }
+                    } else if (targetForRecursion === 0 && neededOtherLpds > 0) {
+                         overallSearchLog.push(`   Skipping: Need ${neededOtherLpds} more LPDs, but remaining target is 0.`);
+                    }
+                    else if (neededOtherLpds > 0) { // Normal case: Search for k-1 LPDs
+                        // Call the recursive function to find the remaining LPDs
+                        foundKMinus1Combination = findSumCombinationRecursive(searchLpdList, targetForRecursion, neededOtherLpds, 0, []);
+                    }
+
+                    // --- Process Recursion Result ---
+                    if (foundKMinus1Combination !== null) {
+                        // Combine obligatory LPD with the found ones, sort for consistency
+                        const currentFullCombination = [...foundKMinus1Combination, currentObligatoryLpdValue].sort((a, b) => a - b);
+                        const currentFrequencyScore = getFrequencyScore(currentFullCombination);
+                        overallSearchLog.push(`   <span class="success">Found Exact Sum Combination: [${currentFullCombination.join(', ')}] (Sum: ${currentTargetSum}, Freq Score: ${currentFrequencyScore})</span>`);
+                        foundCombinationForThisTarget = true; // Mark that we found at least one for this target
+
+                        // Check if this is the best combination found *overall* so far
+                        if (overallBestCombination === null || currentFrequencyScore > overallBestFrequencyScore) {
+                            overallSearchLog.push(`   <span class="info">   ** New OVERALL Best Combination Found (Higher Freq Score) **</span>`);
+                            overallBestCombination = currentFullCombination;
+                            overallBestFrequencyScore = currentFrequencyScore;
+                            overallBestTargetSum = currentTargetSum; // Record which target yielded this best one
+                        }
+                    } else {
+                        overallSearchLog.push(`   -> No combination of ${neededOtherLpds} other LPDs found summing to ${targetForRecursion}.`);
+                    }
+                    overallSearchLog.push(`</div>`); // Close candidate-section
+                } // End obligatory candidate loop
+
+                if (!foundCombinationForThisTarget) {
+                     overallSearchLog.push(`   <span class="info">No combinations found for target ${currentTargetSum} after trying all obligatory candidates.</span>`);
+                }
+                 overallSearchLog.push(`</div>`); // Close target-section
+            } // End outer target sum loop
+
+            // 6. Display Final Result
+            resultsDiv.innerHTML = overallSearchLog.join('\n'); // Display the detailed log first
+
+            if (overallBestCombination) {
+                resultsDiv.innerHTML += `\n\n<hr>\n`
+                                 + `<span class="highlight">Overall Best LPD Combination Found (${combinationSize} LPDs): [${overallBestCombination.join(', ')}]</span>`
+                                 + `\n(This combination achieved the highest frequency score among all valid combinations found for the tested target sums [${targetsToTest.join(', ')}])`
+                                 + `\nAchieved Target Sum: ${overallBestTargetSum}`
+                                 + `\nTotal Frequency Score: ${overallBestFrequencyScore}`;
+            } else {
+                 resultsDiv.innerHTML += `\n\n<hr>\n`
+                                    + `<span class="error">No combination of ${combinationSize} distinct LPDs (>=${MIN_LPD_VALUE}, including one near min amount ${minAmountFound}) found summing EXACTLY to any of the tested target sums [${targetsToTest.join(', ')}] after trying all valid candidates.</span>`;
+            }
+        } // End findBestCombination
+    </script>
+</body>
+</html>
