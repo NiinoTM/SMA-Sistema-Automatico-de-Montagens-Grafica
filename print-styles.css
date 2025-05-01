@@ -1,0 +1,278 @@
+/* --- Print Styles (Extracted for print-styles.css) --- */
+/* Define light mode color variables for printing */
+:root {
+    --print-bg-primary: #ffffff;
+    --print-bg-secondary: #f8f9fa;
+    --print-bg-tertiary: #f1f3f5;
+    --print-bg-card: #ffffff;
+    --print-text-primary: #212529;
+    --print-text-secondary: #495057;
+    --print-text-muted: #6c757d;
+    --print-border: #dee2e6;
+    --print-primary: #0d6efd;
+    --print-primary-dark: #0b5ed7;
+    --print-primary-light: #e7f1ff;
+    --print-success: #198754;
+    --print-danger: #dc3545;
+    --print-warning: #ffc107;
+}
+
+body {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    color-adjust: exact !important;
+    background-color: var(--print-bg-primary) !important;
+    color: var(--print-text-primary) !important;
+    padding: 5mm !important; /* Reduzido de 10mm para 5mm */
+    font-size: 9pt; /* Reduzido de 10pt para 9pt */
+    line-height: 1.3; /* Reduzido de 1.4 para 1.3 */
+    font-family: Arial, sans-serif !important;
+    margin: 0 !important; /* Garantir que não haja margens extras */
+}
+
+/* Hide non-essential elements when printing */
+#sidebar,
+button,
+hr,
+#inputSection,
+#inputSection + p,
+.input-group,
+#finderTitle, #finderResultsLog, #foundCombinationDisplay,
+#allocatorTitle, #statusArea, #strategyComparison,
+#detailsTitle,
+#allocationResults, #adjustmentLog, #variationLog, #refinementLog, #cumulativeUsage,
+#finalSummaryTableDiv ~ button, #lpdBreakdown ~ button {
+    display: none !important;
+}
+
+/* Reset styles for main printable content containers */
+#lpdBreakdown, #finalSummaryTableDiv {
+    margin: 0 !important;
+    padding: 0 !important;
+    border: none !important;
+    box-shadow: none !important;
+    background-color: transparent !important;
+    color: var(--print-text-primary) !important;
+    width: 100% !important;
+    page-break-inside: avoid;
+}
+
+/* Otimização para quebra de página */
+#finalSummaryTableDiv {
+    page-break-before: always !important;
+    margin-top: 5mm !important; /* Reduzido de 10mm para 5mm */
+}
+
+/* Style the overall title for #lpdBreakdown in print */
+#lpdBreakdown > .lpd-section-title {
+    text-align: center;
+    font-size: 12pt; /* Reduzido de 14pt para 12pt */
+    margin-bottom: 5px; /* Reduzido de 10px para 5px */
+    color: var(--print-text-primary) !important;
+    font-weight: bold;
+    border-bottom: 1px solid var(--print-border);
+    padding-bottom: 3px; /* Reduzido de 5px para 3px */
+    display: block !important;
+}
+
+/* Light mode styling for plan containers */
+#lpdBreakdown .plan-container {
+    width: 100% !important; /* Aumentado de 98% para 100% */
+    margin: 0.5rem auto !important; /* Reduzido de 1rem para 0.5rem */
+    padding: 5px 10px !important; /* Reduzido de 10px 15px para 5px 10px */
+    border: 1px solid var(--print-border) !important;
+    box-shadow: none !important; /* Removida a sombra */
+    background-color: var(--print-bg-primary) !important;
+    page-break-inside: avoid !important;
+    border-radius: 3px !important; /* Reduzido de 4px para 3px */
+}
+
+#lpdBreakdown .plan-container h1 {
+    color: var(--print-primary) !important;
+    text-align: center !important;
+    margin: 3px 0 5px 0 !important; /* Reduzido de 5px 0 10px 0 para 3px 0 5px 0 */
+    font-size: 11pt !important; /* Reduzido de 12pt para 11pt */
+    border-bottom: 1px solid var(--print-primary) !important;
+    padding-bottom: 3px !important; /* Reduzido de 5px para 3px */
+    font-weight: 600 !important;
+}
+
+#lpdBreakdown .plan-container table {
+    width: 100% !important;
+    border-collapse: collapse !important;
+    margin-bottom: 5px !important; /* Reduzido de 10px para 5px */
+    font-size: 8pt !important; /* Reduzido de 9pt para 8pt */
+}
+
+#lpdBreakdown .plan-container th,
+#lpdBreakdown .plan-container td {
+    padding: 3px 5px !important; /* Reduzido de 5px 8px para 3px 5px */
+    border: 1px solid var(--print-border) !important;
+    text-align: left !important;
+    color: var(--print-text-secondary) !important;
+    vertical-align: middle !important;
+}
+
+#lpdBreakdown .plan-container th {
+    background-color: var(--print-primary) !important;
+    color: white !important;
+    font-weight: bold !important;
+    text-align: center !important;
+}
+
+/* Center align specific columns */
+#lpdBreakdown .plan-container th:nth-child(2),
+#lpdBreakdown .plan-container th:nth-child(3),
+#lpdBreakdown .plan-container td:nth-child(2),
+#lpdBreakdown .plan-container td:nth-child(3) {
+    text-align: center !important;
+}
+
+#lpdBreakdown .plan-container tr:nth-child(even) td {
+    background-color: var(--print-bg-secondary) !important;
+}
+
+/* Total row styling */
+#lpdBreakdown .plan-container tr.total-row td {
+    font-weight: bold !important;
+    background-color: var(--print-primary-light) !important;
+    color: var(--print-text-primary) !important;
+    border-top: 1px solid var(--print-primary) !important;
+}
+
+#lpdBreakdown .plan-container .total-row td:first-child {
+    text-align: left !important;
+}
+
+#lpdBreakdown .plan-container .total-row td:nth-child(2),
+#lpdBreakdown .plan-container .total-row td:nth-child(3) {
+    text-align: center !important;
+}
+
+/* --- NOVO: Estilo de impressão para o Total Geral de Folhas --- */
+#lpdBreakdown .total-sheets-summary {
+    text-align: center !important;
+    margin-top: 5mm !important; /* Consistent spacing */
+    padding: 3px 5px !important;
+    background-color: var(--print-bg-secondary) !important; /* Light background */
+    border: 1px solid var(--print-border) !important;
+    font-weight: bold !important;
+    color: var(--print-text-primary) !important;
+    font-size: 9pt !important; /* Match body font size */
+    border-radius: 3px !important;
+    page-break-before: avoid !important; /* Still try to avoid break */
+}
+
+
+/* Final Summary Table Styling - Matching the plans table style */
+#finalSummaryTableDiv .lpd-section-title {
+    font-size: 12pt !important; /* Reduzido de 14pt para 12pt */
+    text-align: center !important;
+    margin-bottom: 5px !important; /* Reduzido de 10px para 5px */
+    color: var(--print-text-primary) !important;
+    font-weight: bold !important;
+    border-bottom: 1px solid var(--print-primary) !important;
+    padding-bottom: 3px !important; /* Reduzido de 5px para 3px */
+    display: block !important;
+}
+
+#finalSummaryTable {
+    width: 100% !important;
+    border-collapse: collapse !important;
+    border-spacing: 0 !important;
+    margin-top: 0.5rem !important; /* Reduzido de 1rem para 0.5rem */
+    font-size: 8pt !important; /* Reduzido de 9pt para 8pt */
+    box-shadow: none !important; /* Removida a sombra */
+    border-radius: 3px !important; /* Reduzido de 4px para 3px */
+    overflow: hidden !important;
+}
+
+#finalSummaryTable thead { display: table-header-group; }
+#finalSummaryTable tfoot { display: table-footer-group; }
+
+#finalSummaryTable th,
+#finalSummaryTable td {
+    border: 1px solid var(--print-border) !important;
+    padding: 3px 5px !important; /* Reduzido de 5px 8px para 3px 5px */
+    text-align: left !important;
+    color: var(--print-text-secondary) !important;
+}
+
+/* Header style matching the plan tables */
+#finalSummaryTable th {
+    background-color: var(--print-primary) !important;
+    font-weight: 600 !important;
+    color: white !important;
+    border-bottom: 1px solid var(--print-border) !important;
+    text-align: center !important;
+}
+
+#finalSummaryTable td:nth-child(n+2) {
+    text-align: right !important;
+}
+
+/* Ensure last column (Var %) is right-aligned in body */
+#finalSummaryTable tbody td:last-child {
+    text-align: right !important;
+}
+
+#finalSummaryTable tr:nth-child(even) {
+    background-color: var(--print-bg-secondary) !important;
+}
+
+/* Footer style matching the plan tables total row */
+#finalSummaryTable tfoot th,
+#finalSummaryTable tfoot td {
+    font-weight: bold !important;
+    border-top: 1px solid var(--print-primary) !important;
+    background-color: var(--print-primary-light) !important;
+    color: var(--print-text-primary) !important;
+}
+
+/* Ensure last column (Total Var %) is right-aligned in footer */
+#finalSummaryTable tfoot td:last-child {
+    text-align: right !important;
+}
+
+/* Inverted color indicators - mantidos com pequenas otimizações */
+.positive-diff {
+    color: var(--print-success) !important;
+    font-weight: 500 !important;
+}
+
+.negative-diff {
+    color: var(--print-danger) !important;
+    font-weight: 500 !important;
+}
+
+.zero-diff {
+    color: var(--print-text-muted) !important;
+}
+
+.violation {
+    background-color: rgba(220, 53, 69, 0.1) !important;
+    color: var(--print-danger) !important;
+    border-radius: 2px !important;
+    padding: 0 0.2rem !important; /* Reduzido de 0.1rem 0.3rem para 0 0.2rem */
+    font-weight: 500 !important;
+}
+
+.best-effort {
+    background-color: rgba(255, 193, 7, 0.1) !important;
+    border-left: 2px solid var(--print-warning) !important; /* Reduzido de 3px para 2px */
+    font-weight: 500 !important;
+}
+
+.strategy-error-row {
+    background-color: rgba(220, 53, 69, 0.1) !important;
+    border-left: 2px solid var(--print-danger) !important; /* Reduzido de 3px para 2px */
+}
+
+/* Otimização para evitar quebras de página indesejadas */
+table {
+    page-break-inside: avoid !important;
+}
+
+tr {
+    page-break-inside: avoid !important;
+}

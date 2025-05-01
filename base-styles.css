@@ -1,0 +1,650 @@
+/* --- Base Styles (Extracted for base-styles.css) --- */
+
+/* Resetando alguns estilos padrão e definindo variáveis */
+:root {
+    /* Cores - Dark Mode */
+    --bg-primary: #121212;
+    --bg-secondary: #1e1e1e;
+    --bg-tertiary: #252525;
+    --bg-card: #2d2d2d;
+    --text-primary: #e0e0e0;
+    --text-secondary: #b0b0b0;
+    --text-muted: #888888;
+    --border: #444444;
+    --primary: #3b82f6;
+    --primary-dark: #2563eb;
+    --primary-light: #1e40af; /* Used for Total Row Background */
+    --secondary: #64748b;
+    --secondary-dark: #475569;
+    --success: #10b981;
+    --success-dark: #059669;
+    --warning: #f59e0b;
+    --warning-dark: #d97706;
+    --danger: #ef4444;
+    --danger-dark: #dc2626;
+    --code-bg: #2d2d2d;
+    --sidebar-width: 200px;
+
+    /* Elementos de UI */
+    --border-radius: 4px;
+    --shadow-sm: 0 1px 3px rgba(0,0,0,0.2);
+    --shadow: 0 4px 6px rgba(0,0,0,0.3);
+    --transition: all 0.2s ease;
+    --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    --font-mono: 'Roboto Mono', 'Fira Code', 'Courier New', monospace;
+}
+
+/* Estilos Base */
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+html {
+    scroll-behavior: smooth;
+}
+
+body {
+    font-family: var(--font-sans);
+    font-size: 0.9rem;
+    line-height: 1.5;
+    color: var(--text-primary);
+    background-color: var(--bg-primary);
+    padding-left: calc(var(--sidebar-width) + 20px);
+    padding-top: 10px;
+    padding-right: 15px;
+    padding-bottom: 20px;
+    -webkit-print-color-adjust: exact; /* Ensure colors print */
+     print-color-adjust: exact;
+     color-adjust: exact;
+}
+
+h1, h2, h3, h4, h5, h6 {
+    font-weight: 600;
+    line-height: 1.2;
+    margin-bottom: 0.75rem;
+    color: var(--text-primary);
+}
+
+h1 {
+    font-size: 1.5rem;
+    margin-top: 0.5rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid var(--border);
+}
+
+h2 {
+    font-size: 1.25rem;
+    margin-top: 1.5rem;
+    padding-bottom: 0.25rem;
+}
+
+p {
+    margin-bottom: 0.75rem;
+}
+
+/* Formulários e Entradas */
+label {
+    display: block;
+    margin-top: 0.75rem;
+    margin-bottom: 0.25rem;
+    font-weight: 500;
+    color: var(--text-primary);
+    font-size: 0.9rem;
+}
+
+textarea, input[type="text"], input[type="number"] {
+    width: 100%;
+    padding: 0.5rem;
+    border: 1px solid var(--border);
+    border-radius: var(--border-radius);
+    background-color: var(--bg-tertiary);
+    color: var(--text-primary);
+    font-family: var(--font-sans);
+    font-size: 0.85rem;
+    transition: var(--transition);
+}
+
+textarea {
+    min-height: 130px;
+    font-family: var(--font-mono);
+    line-height: 1.4;
+    resize: vertical;
+}
+
+textarea:focus, input[type="text"]:focus, input[type="number"]:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+}
+
+input[type="number"] {
+    max-width: 150px;
+}
+
+.input-group {
+    margin-bottom: 1rem;
+}
+
+/* Botões */
+button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.5rem 1rem;
+    font-size: 0.85rem;
+    font-weight: 500;
+    line-height: 1.5;
+    color: white;
+    background-color: var(--primary);
+    border: none;
+    border-radius: var(--border-radius);
+    cursor: pointer;
+    transition: var(--transition);
+    box-shadow: var(--shadow-sm);
+    margin-right: 0.5rem;
+    margin-bottom: 0.5rem;
+}
+
+button:hover {
+    background-color: var(--primary-dark);
+    box-shadow: var(--shadow);
+}
+
+button:active {
+    transform: translateY(1px);
+    box-shadow: var(--shadow-sm);
+}
+
+button:disabled {
+    background-color: var(--secondary);
+    cursor: not-allowed;
+    opacity: 0.7;
+}
+
+
+button.secondary {
+    background-color: var(--secondary);
+}
+
+button.secondary:hover {
+    background-color: var(--secondary-dark);
+}
+
+/* Sidebar - Adjust overall padding if desired */
+#sidebar {
+    position: fixed;
+    left: 0;
+    top: 0;
+    width: var(--sidebar-width); /* Keep width or adjust if needed */
+    height: 100%;
+    background-color: var(--bg-secondary);
+    border-right: 1px solid var(--border);
+    padding: 1.5rem 0; /* Increased vertical padding, removed horizontal */
+    overflow-y: auto;
+    z-index: 100;
+    display: flex; /* Use flexbox for better alignment */
+    flex-direction: column; /* Stack items vertically */
+}
+
+/* Sidebar Header */
+#sidebar h3 {
+    margin-top: 0;
+    margin-bottom: 1.5rem; /* More space below header */
+    padding: 0 1rem 0.75rem 1rem; /* Consistent horizontal padding */
+    border-bottom: 1px solid var(--border);
+    font-size: 1.05rem; /* Slightly larger */
+    color: var(--text-primary);
+    font-weight: 600;
+    text-align: center; /* Center the title */
+}
+
+/* Sidebar List - Remove default padding */
+#sidebar ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    width: 100%; /* Ensure list takes full width */
+}
+
+/* Sidebar List Item - Remove margin, rely on link padding */
+#sidebar li {
+    margin-bottom: 0; /* Remove margin, spacing handled by link padding */
+}
+
+/* Sidebar Link - Enhanced Styling */
+#sidebar li a {
+    display: block;
+    /* Increased vertical padding, added horizontal padding */
+    padding: 0.8rem 1rem;
+    text-decoration: none;
+    color: var(--text-secondary);
+    border-radius: 0; /* Remove border-radius for a cleaner edge-to-edge look */
+    transition: all 0.25s ease-in-out; /* Smoother transition */
+    font-size: 0.9rem; /* Slightly larger font */
+    font-weight: 500; /* Slightly bolder */
+    border-left: 4px solid transparent; /* Placeholder for hover/active effect */
+}
+
+/* Sidebar Link Hover/Focus State */
+#sidebar li a:hover,
+#sidebar li a:focus { /* Added focus state for accessibility */
+    background-color: rgba(59, 130, 246, 0.1); /* Subtle background highlight */
+    color: var(--primary); /* Highlight color */
+    border-left: 4px solid var(--primary); /* Accent border */
+    outline: none; /* Remove default focus outline */
+     padding-left: calc(1rem - 4px); /* Adjust padding to keep text alignment */
+}
+
+/* Caixas de Resultado (excluindo lpdBreakdown) */
+#finderResultsLog, #foundCombinationDisplay, #statusArea, #strategyComparison,
+#allocationResults, #cumulativeUsage, #adjustmentLog,
+#finalSummaryTableDiv, #variationLog, #lpdBreakdown, #refinementLog {
+    margin-top: 1rem;
+    padding: 0.75rem;
+    border-radius: var(--border-radius);
+    background-color: var(--bg-card);
+    box-shadow: var(--shadow-sm);
+    font-family: var(--font-mono);
+    font-size: 0.85rem;
+    line-height: 1.4;
+    overflow-x: auto;
+    border-left: 2px solid var(--border);
+}
+
+ #refinementLog {
+    border-left-color: var(--success-dark); /* Example: Darker green */
+}
+
+/* Estilo específico para cada tipo de caixa (exceto lpdBreakdown) */
+#finderResultsLog {
+    white-space: pre-wrap;
+    border-left-color: var(--primary);
+}
+
+#foundCombinationDisplay {
+    padding: 0.75rem;
+    border: none;
+    background-color: var(--bg-tertiary);
+    font-weight: 600;
+    border-left: 2px solid var(--primary);
+}
+
+#statusArea {
+    border-left-color: var(--secondary);
+}
+
+#strategyComparison {
+    border-left-color: var(--secondary);
+}
+
+#allocationResults, #adjustmentLog, #cumulativeUsage {
+    border-left-color: var(--success);
+}
+
+#variationLog {
+    border-left-color: var(--warning);
+}
+
+#finalSummaryTableDiv {
+    border-left-color: var(--primary);
+}
+
+/* Separadores */
+hr {
+    border: none;
+    height: 1px;
+    background-color: var(--border);
+    margin: 1.5rem 0 1rem 0;
+}
+
+/* Alertas e Destaques */
+.error {
+    color: var(--danger);
+    font-weight: 500;
+}
+
+.info {
+    color: var(--primary);
+}
+
+.warning {
+    color: var(--warning);
+    font-weight: 500;
+}
+
+.success {
+    color: var(--success);
+    font-weight: 500;
+}
+
+.highlight {
+    background-color: rgba(245, 158, 11, 0.15);
+    font-weight: 500;
+    border-radius: 2px;
+    padding: 0.1rem 0.3rem;
+    border: none;
+}
+
+/* Classes de Combinação */
+.fallback-gcd {
+    color: var(--warning);
+    font-weight: 600;
+}
+
+.fallback-prop {
+    color: var(--secondary);
+    font-weight: 600;
+}
+
+.target-section {
+    border-top: 1px solid var(--border);
+    padding-top: 0.75rem;
+    margin-top: 1rem;
+}
+
+.candidate-section {
+    border-left: 2px solid var(--border);
+    padding-left: 0.75rem;
+    margin: 0.5rem 0;
+    padding-top: 0.25rem;
+    padding-bottom: 0.25rem;
+}
+
+.fallback-section {
+    border-top: 1px solid var(--warning-dark);
+    padding-top: 0.75rem;
+    margin-top: 1rem;
+}
+
+.proportional-fallback-section, .proportional-direct-section {
+    border-top: 1px solid var(--secondary-dark);
+    padding-top: 0.75rem;
+    margin-top: 1rem;
+}
+
+/* Classes de Alocação */
+.positive-diff {
+    color: var(--success);
+    font-weight: 500;
+}
+
+.negative-diff {
+    color: var(--danger);
+    font-weight: 500;
+}
+
+.zero-diff {
+    color: var(--text-muted);
+}
+
+.violation {
+    background-color: rgba(239, 68, 68, 0.15);
+    color: var(--danger);
+    border-radius: 2px;
+    padding: 0.1rem 0.3rem;
+    font-weight: 500;
+}
+
+.item-allocation, .adjustment-step, .variation-step { /* lpd-section removed */
+    border-top: 1px dashed var(--border);
+    margin-top: 0.75rem;
+    padding-top: 0.75rem;
+}
+ /* Specific style for lpd-section inside lpdBreakdown if needed, otherwise remove default styling */
+#lpdBreakdown .lpd-section {
+    border-top: none; /* Remove border from individual items within the card view */
+     margin-top: 0;
+     padding-top: 0;
+}
+
+.usage-summary, .lpd-section-title, .comparison-title {
+    margin-top: 1rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+/* List style - keep if needed elsewhere, but not for plan-container */
+.lpd-item-list {
+    margin-left: 1.25rem;
+    list-style-type: none;
+    padding-left: 0;
+}
+.lpd-item-list li {
+    margin-bottom: 0.15rem;
+    padding: 0.15rem 0;
+}
+.lpd-total {
+    margin-top: 0.5rem;
+    font-style: italic;
+    padding-left: 1.25rem;
+    color: var(--text-muted);
+}
+
+
+/* Tabelas */
+#finalSummaryTable, #comparisonTable {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    margin-top: 1rem;
+    border-radius: var(--border-radius);
+    overflow: hidden;
+    box-shadow: var(--shadow-sm);
+}
+
+#finalSummaryTable th, #finalSummaryTable td,
+#comparisonTable th, #comparisonTable td {
+    border: 1px solid var(--border);
+    padding: 0.5rem 0.75rem;
+    text-align: left;
+    font-size: 0.85rem;
+}
+
+#finalSummaryTable th, #comparisonTable th {
+    background-color: var(--bg-tertiary);
+    font-weight: 600;
+    color: var(--text-primary);
+    border-bottom: 2px solid var(--border);
+}
+
+#finalSummaryTable td:nth-child(n+2),
+#comparisonTable td:nth-child(n+2) {
+    text-align: right;
+}
+/* Right-align the last column (Var %) in the body too */
+#finalSummaryTable tbody td:last-child {
+    text-align: right;
+}
+
+#finalSummaryTable tr:nth-child(even),
+#comparisonTable tr:nth-child(even) {
+    background-color: rgba(255, 255, 255, 0.025);
+}
+
+#finalSummaryTable tr:hover,
+#comparisonTable tr:hover {
+    background-color: rgba(59, 130, 246, 0.05);
+}
+
+/* Estilo para tfoot */
+#finalSummaryTable tfoot th, #finalSummaryTable tfoot td {
+    font-weight: bold;
+    border-top: 2px solid var(--border);
+    background-color: var(--bg-tertiary);
+}
+/* Right-align the last column (Total Var %) in the footer */
+#finalSummaryTable tfoot td:last-child {
+    text-align: right;
+}
+
+
+.best-effort {
+    background-color: rgba(245, 158, 11, 0.1) !important;
+    border-left: 3px solid var(--warning);
+    font-weight: 500;
+}
+
+.strategy-error-row {
+    background-color: rgba(239, 68, 68, 0.1) !important;
+    border-left: 3px solid var(--danger);
+}
+
+#comparisonTable .strategy-name {
+    cursor: pointer;
+    text-decoration: underline;
+    color: var(--primary);
+    text-align: left !important;
+    transition: var(--transition);
+}
+
+#comparisonTable .strategy-name:hover {
+    color: var(--primary-dark);
+}
+
+.comparison-table-container.hide-errors .strategy-error-row {
+    display: none;
+}
+
+.comparison-table-container.hide-duplicates .strategy-duplicate-row {
+    display: none;
+}
+
+/* Optional: Style the duplicate button */
+#toggleDuplicatesBtn {
+    background-color: var(--secondary); /* Or choose another color */
+    margin-left: 0.5rem;
+    font-size: 0.8rem;
+    padding: 0.35rem 0.75rem;
+}
+#toggleDuplicatesBtn:hover {
+     background-color: var(--secondary-dark);
+}
+
+#toggleErrorsBtn {
+    background-color: var(--secondary);
+    margin-left: 0.5rem;
+    font-size: 0.8rem;
+    padding: 0.35rem 0.75rem;
+}
+
+#toggleErrorsBtn:hover {
+    background-color: var(--secondary-dark);
+}
+
+/* Classes Específicas para Feedback Visual */
+.output-section {
+    scroll-margin-top: 15px;
+    transition: var(--transition);
+}
+
+
+/* --- Estilos para Montagem de Planos (Formato Cartão/Tabela) --- */
+#lpdBreakdown .plan-container { /* Increased specificity */
+    width: 98%;
+    max-width: 650px;
+    margin: 1rem auto;
+    background-color: var(--bg-secondary); /* Card background */
+    padding: 10px 15px;
+    box-shadow: var(--shadow);
+    border-radius: var(--border-radius);
+    border: 1px solid var(--border);
+    page-break-inside: avoid;
+}
+
+#lpdBreakdown .plan-container h1 { /* Increased specificity */
+    color: var(--primary);
+    text-align: center;
+    margin: 5px 0 10px 0;
+    font-size: 1rem;
+    border-bottom: 1px solid var(--primary-dark);
+    padding-bottom: 5px;
+    font-weight: 600;
+}
+
+#lpdBreakdown .plan-container table { /* Increased specificity */
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 10px;
+    font-size: 0.8rem;
+}
+
+#lpdBreakdown .plan-container th,
+#lpdBreakdown .plan-container td { /* Increased specificity */
+    padding: 4px 6px;
+    border: 1px solid var(--border);
+    text-align: left;
+    color: var(--text-secondary);
+    vertical-align: middle;
+}
+
+#lpdBreakdown .plan-container th { /* Increased specificity */
+    background-color: var(--primary-dark);
+    color: white;
+    font-weight: bold;
+    text-align: center;
+}
+/* Center align Img and Qtd columns */
+#lpdBreakdown .plan-container th:nth-child(2), /* Header Img */
+#lpdBreakdown .plan-container th:nth-child(3), /* Header Qtd */
+#lpdBreakdown .plan-container td:nth-child(2), /* Body Img */
+#lpdBreakdown .plan-container td:nth-child(3) { /* Body Qtd */
+    text-align: center;
+}
+
+#lpdBreakdown .plan-container tr:nth-child(even) td { /* Increased specificity */
+     background-color: var(--bg-tertiary);
+}
+
+/* Total row style with !important for background */
+#lpdBreakdown .plan-container tr.total-row td { /* Increased specificity */
+    font-weight: bold;
+    background-color: var(--primary-light) !important; /* Add !important to ensure override */
+    color: white;
+}
+#lpdBreakdown .plan-container .total-row td:first-child { /* Increased specificity */
+     text-align: left;
+}
+ /* Center align total Img and Qtd */
+ #lpdBreakdown .plan-container .total-row td:nth-child(2), /* Total Img */
+ #lpdBreakdown .plan-container .total-row td:nth-child(3) { /* Total Qtd */
+     text-align: center;
+ }
+
+/* --- NOVO: Estilo para o Bloco de Total Geral de Folhas --- */
+#lpdBreakdown .total-sheets-summary {
+    text-align: center;
+    margin-top: 1.5rem;
+    margin-bottom: 0.5rem; /* Add some bottom margin */
+    padding: 0.75rem;
+    background-color: var(--bg-tertiary);
+    border-radius: var(--border-radius);
+    border: 1px solid var(--border);
+    font-weight: bold;
+    color: var(--text-primary);
+    font-size: 0.9rem;
+    page-break-before: avoid; /* Try to avoid page break before this summary */
+}
+
+
+/* Scrollbar customizada */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: var(--bg-tertiary);
+}
+
+::-webkit-scrollbar-thumb {
+    background: var(--border);
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: var(--text-muted);
+}
+
+/* --- End of Base Styles --- */

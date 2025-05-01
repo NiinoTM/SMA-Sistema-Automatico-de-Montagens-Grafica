@@ -1,0 +1,41 @@
+/* --- Responsive Styles (Extracted for responsive-styles.css) --- */
+
+@media screen and (max-width: 1100px) {
+    body {
+        padding-left: 15px;
+        padding-right: 15px;
+    }
+
+    #sidebar {
+        display: none; /* Esconde a sidebar em telas menores */
+    }
+}
+
+@media screen and (max-width: 768px) {
+    body {
+        padding: 10px;
+        font-size: 0.85rem;
+    }
+
+    button {
+        width: 100%; /* Botões ocupam largura total */
+        margin-right: 0;
+    }
+
+    #finderResultsLog, #foundCombinationDisplay, #statusArea, #strategyComparison,
+    #allocationResults, #cumulativeUsage, #adjustmentLog, #refinementLog,
+    #finalSummaryTableDiv, #variationLog { /* lpdBreakdown removed from group */
+        padding: 0.65rem;
+    }
+    #lpdBreakdown { padding: 0.5rem 0; } /* Restore minimal padding for mobile */
+    #lpdBreakdown .plan-container { width: 100%; max-width: none; } /* Plan cards full width */
+
+
+    h1 {
+        font-size: 1.3rem;
+    }
+
+    h2 {
+        font-size: 1.1rem;
+    }
+}
