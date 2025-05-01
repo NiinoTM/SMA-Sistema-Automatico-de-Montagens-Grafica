@@ -628,6 +628,45 @@ hr {
 }
 
 
+/* Style for the input when warning is active */
+#combinationSizeContainer.input-warning input[type="number"] {
+    border-color: var(--danger);
+    box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.2);
+}
+
+/* Initially hide the icon by default using CSS */
+#combinationSizeContainer .warning-icon {
+    display: none; /* Keep hidden by default */
+    margin-left: 8px; /* Add space between input wrapper and icon */
+    vertical-align: middle; /* Align vertically with the input wrapper */
+    /* color: var(--danger); */ /* Color is already set inline, but could be moved here */
+    /* font-weight: bold; */ /* Weight is already set inline */
+    /* cursor: help; */ /* Cursor is already set inline */
+    font-size: 1.1em; /* Optional: Make icon slightly larger if desired */
+}
+
+/* Style to show the icon when warning is active */
+#combinationSizeContainer.input-warning .warning-icon {
+    display: inline-block; /* Show the icon next to the input wrapper */
+}
+
+/* Target the specific input inside the wrapper div for width styling */
+/* Ensure the inner div and input are vertically aligned too */
+#combinationSizeContainer > div > input[type="number"] {
+    width: 150px;
+    max-width: 100%;
+    vertical-align: middle; /* Align input vertically if needed */
+}
+
+/* Explicitly remove any lingering absolute positioning if needed elsewhere */
+.warning-icon {
+    position: static; /* Ensure it's not absolutely positioned */
+}
+
+/* --- Rest of the styles --- */
+
+
+
 /* Scrollbar customizada */
 ::-webkit-scrollbar {
     width: 8px;

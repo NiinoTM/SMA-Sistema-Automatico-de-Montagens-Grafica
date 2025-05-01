@@ -463,7 +463,7 @@ function initiateProcess(mode) {
 
     // --- REVISED PARSING SECTION ---
     // **** CALL TO processing-logic.js ****
-    const parseResult = parseTableData(tableDataInput);
+    const parseResult = parseTableData(tableDataInput); // tableDataInput is defined earlier in the function
     const parsedItems = parseResult.items;
     const parseErrors = parseResult.errors;
     const validItemCount = parseResult.count;
@@ -471,8 +471,9 @@ function initiateProcess(mode) {
     const minRawAmount = parseResult.minAmount;
     const maxRawAmount = parseResult.maxAmount;
 
-    // Update the counter display explicitly here as well, in case the input event didn't fire
-    updateItemCountDisplay(); // Function is in this file
+    // Update displays AFTER parsing
+    updateItemCountDisplay();
+    checkCombinationSizeWarning(); // <-- ADD THIS CALL
 
     if (parseErrors.length > 0) {
         finderResultsLogDiv.innerHTML = `<span class="error">Erros ao Processar Entradas:</span>\n${parseErrors.join('\n')}`;
@@ -550,20 +551,63 @@ function initiateProcess(mode) {
 } // Fim initiateProcess
 
 
-// --- NEW FUNCTION TO UPDATE THE COUNT DISPLAY ---
+// --- NEW FUNCTION TO UPDATE THE ITEM COUNT DISPLAY ---
 function updateItemCountDisplay() {
     const textarea = document.getElementById('tableData');
     const displayElement = document.getElementById('itemCountDisplay');
     if (!textarea || !displayElement) {
         console.warn("Could not find textarea or display element for item count.");
-        return;
+        return 0; // Return 0 if elements not found
     }
 
     // **** CALL TO processing-logic.js ****
     const parseResult = parseTableData(textarea.value);
-    const count = parseResult.count; // Get count from the result object
+    const count = parseResult.count;
 
     displayElement.textContent = `Total de Imagens: ${count}`;
+    return count; // Return the count for reuse
+}
+
+// --- NEW FUNCTION TO CHECK AND APPLY WARNING FOR COMBINATION SIZE ---
+function checkCombinationSizeWarning() {
+    const maxSlotsInput = document.getElementById('maxSlots');
+    const combinationSizeInput = document.getElementById('combinationSize');
+    const container = document.getElementById('combinationSizeContainer');
+    const textarea = document.getElementById('tableData'); // Need this to get item count
+
+    if (!maxSlotsInput || !combinationSizeInput || !container || !textarea) {
+        console.warn("Missing elements for combination size warning check.");
+        return;
+    }
+
+    const maxSlotsValue = parseInt(maxSlotsInput.value, 10);
+    const combinationSizeValue = parseInt(combinationSizeInput.value, 10);
+
+    // Get current item count by parsing again (or could reuse from updateItemCountDisplay if structured differently)
+    // **** CALL TO processing-logic.js ****
+    const parseResult = parseTableData(textarea.value);
+    const itemCount = parseResult.count;
+
+    let showWarning = false;
+
+    // Check if inputs are valid numbers >= 1 and perform the comparison
+    if (!isNaN(maxSlotsValue) && maxSlotsValue >= 1 &&
+        !isNaN(combinationSizeValue) && combinationSizeValue >= 1 &&
+        itemCount > 0) {
+
+        const totalCapacity = maxSlotsValue * combinationSizeValue;
+        if (totalCapacity < itemCount) {
+            showWarning = true;
+        }
+    }
+    // else: if inputs are invalid or item count is 0, don't show the warning based on this logic
+
+    // Apply or remove the warning class
+    if (showWarning) {
+        container.classList.add('input-warning');
+    } else {
+        container.classList.remove('input-warning');
+    }
 }
 
 
@@ -894,11 +938,32 @@ function displayStrategyDetails(encodedStrategyName) { // exibirDetalhesEstrateg
 // Ensure the DOM is loaded before adding listener (defer helps, but this is safer)
 document.addEventListener('DOMContentLoaded', () => {
     const tableDataTextarea = document.getElementById('tableData');
+    const maxSlotsInput = document.getElementById('maxSlots');
+    const combinationSizeInput = document.getElementById('combinationSize');
+
     if (tableDataTextarea) {
-        tableDataTextarea.addEventListener('input', updateItemCountDisplay);
-        // Call it once on load to set initial value
+        tableDataTextarea.addEventListener('input', () => {
+            updateItemCountDisplay();
+            checkCombinationSizeWarning(); // Call warning check too
+        });
+        // Initial calls on load
         updateItemCountDisplay();
     } else {
-        console.error("Could not find tableData textarea to attach listener.");
+        console.error("Could not find tableData textarea.");
     }
+
+    if (maxSlotsInput) {
+        maxSlotsInput.addEventListener('input', checkCombinationSizeWarning);
+    } else {
+         console.error("Could not find maxSlots input.");
+    }
+
+     if (combinationSizeInput) {
+        combinationSizeInput.addEventListener('input', checkCombinationSizeWarning);
+    } else {
+         console.error("Could not find combinationSize input.");
+    }
+
+    // Initial check for warning on load
+    checkCombinationSizeWarning();
 });

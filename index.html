@@ -33,13 +33,20 @@ Especificação C	20000
 ..."></textarea>
         <div id="itemCountDisplay" style="margin-top: 0.25rem; font-size: 0.8rem; color: var(--text-muted);">Total de Imagens: 0</div>
     </div>
+
     <div class="input-group">
         <label for="maxSlots">Imagens no Plano :</label>
         <input type="number" id="maxSlots" min="1" placeholder="ex: 8" required>
     </div>
-    <div class="input-group">
+
+    <div class="input-group" id="combinationSizeContainer">
         <label for="combinationSize">Quantidade de Planos :</label>
-        <input type="number" id="combinationSize" value="1" min="1">
+        <!-- Removed position:relative from the div style -->
+        <div style="display: inline-block; width: auto; vertical-align: middle;">
+            <input type="number" id="combinationSize" value="1" min="1">
+        </div>
+        <!-- Icon is now outside the div, removed absolute positioning styles -->
+        <span class="warning-icon" style="color: var(--danger); font-weight: bold; cursor: help;" title="A capacidade total (Imagens * Planos) é menor que o Total de Imagens requisitadas.">⚠️</span>
     </div>
 
     <!-- Botões de Ação -->
