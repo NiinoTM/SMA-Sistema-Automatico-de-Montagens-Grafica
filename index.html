@@ -15,7 +15,9 @@
         <h3>Navegação</h3>
         <ul>
             <li><a href="#inputSection">Entradas</a></li>
-            <li><a href="#strategyComparison">Comparação de Estratégias</a></li>
+            <!-- Updated link to point to new Combination Summary -->
+            <li><a href="#combinationSummaryTitle">Resumo Combinações</a></li>
+            <li><a href="#strategyComparison">Comparação Estratégias</a></li>
             <li><a href="#lpdBreakdown">Montagem dos Planos</a></li>
             <li><a href="#finalSummaryTableDiv">Comparativo <br> Original x Modificado</a></li>
         </ul>
@@ -23,7 +25,9 @@
 
     <!-- Área de Conteúdo Principal -->
     <h1 id="inputSection">Sistema de Montagem de Planos (Método Selecionável)</h1>
-    <p>Insira os dados de Especificações e Quantidades para processamento. Escolha entre: 1) Otimização por Frequência de Maiores Divisores, que analisa os maiores divisores possíveis de cada produto e seleciona Planos baseados em sua recorrência; ou 2) Cálculo de Combinação Proporcional Direta para distribuição equilibrada. O sistema alocará automaticamente as Especificações conforme o método escolhido, apresentando resultados otimizados.</p>    <!-- Campos de Entrada -->
+    <p>Insira os dados de Especificações e Quantidades para processamento. Escolha entre: 1) Otimização por Frequência de Maiores Divisores, que analisa os maiores divisores possíveis de cada produto e seleciona Planos baseados em sua recorrência; ou 2) Cálculo de Combinação Proporcional Direta para distribuição equilibrada. O sistema alocará automaticamente as Especificações conforme o método escolhido, apresentando resultados otimizados.</p>
+
+    <!-- Campos de Entrada -->
     <div class="input-group">
         <label for="tableData">Dados da Tabela (Especificação + Quantidade, um por linha):</label>
         <textarea id="tableData" placeholder="Exemplo:
@@ -41,11 +45,11 @@ Especificação C	20000
 
     <div class="input-group" id="combinationSizeContainer">
         <label for="combinationSize">Quantidade de Planos :</label>
-        <!-- Removed position:relative from the div style -->
+        <!-- Inner div for alignment -->
         <div style="display: inline-block; width: auto; vertical-align: middle;">
             <input type="number" id="combinationSize" value="1" min="1">
         </div>
-        <!-- Icon is now outside the div, removed absolute positioning styles -->
+        <!-- Icon outside the div -->
         <span class="warning-icon" style="color: var(--danger); font-weight: bold; cursor: help;" title="A capacidade total (Imagens * Planos) é menor que o Total de Imagens requisitadas.">⚠️</span>
     </div>
 
@@ -55,26 +59,44 @@ Especificação C	20000
 
     <!-- Áreas de Saída -->
 
-    <!-- Seção para Resultados da Combinação -->
+    <!-- Seção para Resultados da Combinação FINDER -->
     <hr>
-    <h2 id="finderTitle" class="output-section">Resultados da Combinação</h2>
+    <h2 id="finderTitle" class="output-section">Resultados da Geração de Combinação</h2>
     <div id="finderResultsLog" class="output-section">O registro da geração da combinação aparecerá aqui...</div>
-    <div id="foundCombinationDisplay" class="output-section">A Combinação de Planos gerada aparecerá aqui...</div>
+    <!-- Removed or repurposed: <div id="foundCombinationDisplay" class="output-section">...</div> -->
 
-    <!-- Seção para Resultados do Alocador -->
+    <!-- NEW: Seção para Resumo das Combinações Testadas -->
     <hr>
-    <h2 id="allocatorTitle" class="output-section">Resultados do Alocador de Especificações</h2>
-    <div id="statusArea" class="output-section">Mensagens de status do alocador aparecerão aqui...</div>
-    <div id="strategyComparison" class="output-section">Resultados da Comparação de Estratégias aparecerão aqui...</div>
-    <hr style="margin-top: 1.5rem; border-top: 1px solid var(--border); margin-bottom: 0.5rem;">
-    <h2 id="detailsTitle" class="output-section" style="margin-top: 0.5rem; font-size: 1.1em;">Resultados Detalhados da Alocação</h2>
-    <div id="allocationResults" class="output-section">Resultados detalhados da Alocação por Especificação aparecerão aqui...</div>
-    <div id="adjustmentLog" class="output-section">Registro de Ajuste de Preenchimento de Imagens aparecerá aqui...</div>
-    <div id="variationLog" class="output-section">Registro de Ajuste de Variação aparecerá aqui...</div>
-    <div id="cumulativeUsage" class="output-section">Uso acumulado de Planos aparecerá aqui...</div>
-    <div id="refinementLog" class="output-section">Registro de Refinamento Iterativo aparecerá aqui...</div>
-    <div id="lpdBreakdown" class="output-section">Montagem dos Planos por Instância de Especificação aparecerá aqui...</div>
-    <div id="finalSummaryTableDiv" class="output-section">Tabela Comparativa Final da Alocação aparecerá aqui...</div>
+    <h2 id="combinationSummaryTitle" class="output-section" style="display: none;">Resumo das Combinações Testadas</h2>
+    <div id="combinationSummaryTableDiv" class="output-section">O resumo do desempenho de cada combinação aparecerá aqui...</div>
+
+
+    <!-- Seção para Resultados do Alocador (Now appears AFTER combination selection) -->
+    <hr>
+    <!-- Added style="display: none;" to hide initially -->
+    <h2 id="allocatorTitle" class="output-section" style="display: none;">Resultados do Alocador (para Combinação Selecionada)</h2>
+    <!-- Added style="display: none;" to hide initially -->
+    <div id="statusArea" class="output-section" style="display: none;">Mensagens de status do alocador aparecerão aqui...</div>
+    <!-- Added style="display: none;" to hide initially -->
+    <div id="strategyComparison" class="output-section" style="display: none;">Resultados da Comparação de Estratégias aparecerão aqui...</div>
+    <!-- Added style="display: none;" and ID to hide initially -->
+    <hr id="detailsSeparator" style="margin-top: 1.5rem; border-top: 1px solid var(--border); margin-bottom: 0.5rem; display: none;">
+     <!-- Added style="display: none;" to hide initially -->
+    <h2 id="detailsTitle" class="output-section" style="margin-top: 0.5rem; font-size: 1.1em; display: none;">Resultados Detalhados da Alocação</h2>
+    <!-- Added style="display: none;" to hide initially -->
+    <div id="allocationResults" class="output-section" style="display: none;">Resultados detalhados da Alocação por Especificação aparecerão aqui...</div>
+    <!-- Added style="display: none;" to hide initially -->
+    <div id="adjustmentLog" class="output-section" style="display: none;">Registro de Ajuste de Preenchimento de Imagens aparecerá aqui...</div>
+    <!-- Added style="display: none;" to hide initially -->
+    <div id="variationLog" class="output-section" style="display: none;">Registro de Ajuste de Variação aparecerá aqui...</div>
+    <!-- Added style="display: none;" to hide initially -->
+    <div id="cumulativeUsage" class="output-section" style="display: none;">Uso acumulado de Planos aparecerá aqui...</div>
+     <!-- Added style="display: none;" to hide initially -->
+    <div id="refinementLog" class="output-section" style="display: none;">Registro de Refinamento Iterativo aparecerá aqui...</div>
+    <!-- Added style="display: none;" to hide initially -->
+    <div id="lpdBreakdown" class="output-section" style="display: none;">Montagem dos Planos por Instância de Especificação aparecerá aqui...</div>
+    <!-- Added style="display: none;" to hide initially -->
+    <div id="finalSummaryTableDiv" class="output-section" style="display: none;">Tabela Comparativa Final da Alocação aparecerá aqui...</div>
 
     <!-- SCRIPTS -->
     <script src="utils.js" defer></script>

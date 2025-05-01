@@ -1,41 +1,84 @@
 /* --- Responsive Styles (Extracted for responsive-styles.css) --- */
 
+/* Medium screens (e.g., tablets) */
 @media screen and (max-width: 1100px) {
     body {
+        /* Remove sidebar padding */
         padding-left: 15px;
         padding-right: 15px;
     }
 
     #sidebar {
-        display: none; /* Esconde a sidebar em telas menores */
+        display: none; /* Hide the sidebar */
     }
+     /* Adjust scroll margin for hidden sidebar */
+     .output-section {
+         scroll-margin-top: 10px;
+     }
 }
 
+/* Smaller screens (e.g., mobile phones) */
 @media screen and (max-width: 768px) {
     body {
-        padding: 10px;
-        font-size: 0.85rem;
+        padding: 10px; /* Reduce overall padding */
+        font-size: 0.85rem; /* Slightly smaller base font */
     }
 
+    /* Make buttons take full width */
     button {
-        width: 100%; /* Botões ocupam largura total */
-        margin-right: 0;
+        width: 100%;
+        margin-right: 0; /* Remove right margin */
+        margin-bottom: 0.75rem; /* Add slightly more bottom margin */
     }
+    .toggle-buttons-container {
+         text-align: center; /* Center toggle buttons */
+    }
+     .toggle-buttons-container button {
+          width: auto; /* Allow toggle buttons to size naturally */
+          margin: 0 0.25rem;
+     }
 
-    #finderResultsLog, #foundCombinationDisplay, #statusArea, #strategyComparison,
-    #allocationResults, #cumulativeUsage, #adjustmentLog, #refinementLog,
-    #finalSummaryTableDiv, #variationLog { /* lpdBreakdown removed from group */
+
+    /* Reduce padding on output sections */
+    .output-section {
         padding: 0.65rem;
     }
-    #lpdBreakdown { padding: 0.5rem 0; } /* Restore minimal padding for mobile */
-    #lpdBreakdown .plan-container { width: 100%; max-width: none; } /* Plan cards full width */
-
-
-    h1 {
-        font-size: 1.3rem;
+    /* Special handling for lpdBreakdown on mobile */
+    #lpdBreakdown {
+         padding: 0.5rem 0; /* Minimal padding */
     }
-
-    h2 {
-        font-size: 1.1rem;
+    #lpdBreakdown .plan-container {
+         width: 100%; /* Plan cards full width */
+         max-width: none;
+         margin-left: 0;
+         margin-right: 0;
+         padding: 8px; /* Reduce padding inside cards */
+         font-size: 0.75rem; /* Smaller font inside cards */
     }
+     #lpdBreakdown .total-sheets-summary {
+          width: 100%;
+          max-width: none;
+          margin-left: 0;
+          margin-right: 0;
+     }
+
+
+    /* Adjust heading sizes */
+    h1 { font-size: 1.3rem; }
+    h2 { font-size: 1.1rem; margin-top: 1.25rem; }
+
+    /* Adjust table font sizes */
+     #combinationSummaryTable, #comparisonTable, #finalSummaryTable {
+         font-size: 0.75rem; /* Smaller table text */
+     }
+      #combinationSummaryTable th, #combinationSummaryTable td,
+      #comparisonTable th, #comparisonTable td,
+      #finalSummaryTable th, #finalSummaryTable td {
+          padding: 0.3rem 0.5rem; /* Reduce cell padding */
+      }
+
+     /* Adjust number input width */
+     input[type="number"] {
+          max-width: 100px;
+     }
 }

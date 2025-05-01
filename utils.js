@@ -10,11 +10,11 @@ let globalMaxSlotsDisplay = "Ilimitado"; // Exibição Máx Imagens
 let globalCurrentlyDisplayedStrategyName = null; // Track displayed strategy
 
 // --- REGRAS DE CONFIGURAÇÃO ---
-const MIN_LPD_VALUE = 2000; // Valor Mínimo do Plano
-const OBLIGATORY_RANGE = 500; // Intervalo Obrigatório
+const MIN_LPD_VALUE = 0; // Valor Mínimo do Plano
+const OBLIGATORY_RANGE = 5000; // Intervalo Obrigatório
 const TARGET_RANGE_BELOW = 500; // Intervalo Alvo Abaixo
 const TARGET_RANGE_ABOVE = 1000; // Intervalo Alvo Acima
-const TARGET_STEP = 500; // Passo do Alvo
+const TARGET_STEP = 100; // Passo do Alvo
 const PROPORTIONAL_ROUNDING_STEP = 50; // Passo de Arredondamento Proporcional
 const MIN_LPD_VALUE_ALLOC = 0; // Valor Mínimo do Plano na Alocação
 const VARIATION_LIMIT_PASS_3 = 0.25; // Limite de Variação Passo 3

@@ -1,4 +1,4 @@
-/* --- Base Styles (Extracted for base-styles.css) --- */
+/* --- Base Styles (Complete file content) --- */
 
 /* Resetando alguns estilos padrão e definindo variáveis */
 :root {
@@ -11,16 +11,16 @@
     --text-secondary: #b0b0b0;
     --text-muted: #888888;
     --border: #444444;
-    --primary: #3b82f6;
+    --primary: #3b82f6; /* Blue */
     --primary-dark: #2563eb;
-    --primary-light: #1e40af; /* Used for Total Row Background */
-    --secondary: #64748b;
+    --primary-light: #1e40af; /* Darker blue for backgrounds like Total Row */
+    --secondary: #64748b; /* Grayish Blue */
     --secondary-dark: #475569;
-    --success: #10b981;
+    --success: #10b981; /* Green */
     --success-dark: #059669;
-    --warning: #f59e0b;
+    --warning: #f59e0b; /* Amber */
     --warning-dark: #d97706;
-    --danger: #ef4444;
+    --danger: #ef4444; /* Red */
     --danger-dark: #dc2626;
     --code-bg: #2d2d2d;
     --sidebar-width: 200px;
@@ -51,8 +51,9 @@ body {
     line-height: 1.5;
     color: var(--text-primary);
     background-color: var(--bg-primary);
+    /* Add padding-left to accommodate the fixed sidebar */
     padding-left: calc(var(--sidebar-width) + 20px);
-    padding-top: 10px;
+    padding-top: 15px; /* Added top padding */
     padding-right: 15px;
     padding-bottom: 20px;
     -webkit-print-color-adjust: exact; /* Ensure colors print */
@@ -119,9 +120,16 @@ textarea:focus, input[type="text"]:focus, input[type="number"]:focus {
     box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
 }
 
+/* Specific width for number inputs */
 input[type="number"] {
     max-width: 150px;
+     width: auto; /* Allow shrinking */
 }
+/* Ensure the wrapper div for the combo size input doesn't force full width */
+#combinationSizeContainer > div {
+    width: auto !important;
+}
+
 
 .input-group {
     margin-bottom: 1rem;
@@ -172,124 +180,106 @@ button.secondary:hover {
     background-color: var(--secondary-dark);
 }
 
-/* Sidebar - Adjust overall padding if desired */
+/* Sidebar */
 #sidebar {
     position: fixed;
     left: 0;
     top: 0;
-    width: var(--sidebar-width); /* Keep width or adjust if needed */
+    width: var(--sidebar-width);
     height: 100%;
     background-color: var(--bg-secondary);
     border-right: 1px solid var(--border);
-    padding: 1.5rem 0; /* Increased vertical padding, removed horizontal */
+    padding: 1.5rem 0; /* Vertical padding, no horizontal */
     overflow-y: auto;
     z-index: 100;
-    display: flex; /* Use flexbox for better alignment */
-    flex-direction: column; /* Stack items vertically */
+    display: flex;
+    flex-direction: column;
 }
 
-/* Sidebar Header */
 #sidebar h3 {
     margin-top: 0;
-    margin-bottom: 1.5rem; /* More space below header */
-    padding: 0 1rem 0.75rem 1rem; /* Consistent horizontal padding */
+    margin-bottom: 1.5rem;
+    padding: 0 1rem 0.75rem 1rem; /* Horizontal padding */
     border-bottom: 1px solid var(--border);
-    font-size: 1.05rem; /* Slightly larger */
+    font-size: 1.05rem;
     color: var(--text-primary);
     font-weight: 600;
-    text-align: center; /* Center the title */
+    text-align: center;
 }
 
-/* Sidebar List - Remove default padding */
 #sidebar ul {
     list-style: none;
     padding: 0;
     margin: 0;
-    width: 100%; /* Ensure list takes full width */
+    width: 100%;
 }
 
-/* Sidebar List Item - Remove margin, rely on link padding */
 #sidebar li {
-    margin-bottom: 0; /* Remove margin, spacing handled by link padding */
+    margin-bottom: 0;
 }
 
-/* Sidebar Link - Enhanced Styling */
 #sidebar li a {
     display: block;
-    /* Increased vertical padding, added horizontal padding */
-    padding: 0.8rem 1rem;
+    padding: 0.8rem 1rem; /* Consistent padding */
     text-decoration: none;
     color: var(--text-secondary);
-    border-radius: 0; /* Remove border-radius for a cleaner edge-to-edge look */
-    transition: all 0.25s ease-in-out; /* Smoother transition */
-    font-size: 0.9rem; /* Slightly larger font */
-    font-weight: 500; /* Slightly bolder */
-    border-left: 4px solid transparent; /* Placeholder for hover/active effect */
+    border-radius: 0;
+    transition: all 0.25s ease-in-out;
+    font-size: 0.9rem;
+    font-weight: 500;
+    border-left: 4px solid transparent; /* Placeholder for active/hover */
 }
 
-/* Sidebar Link Hover/Focus State */
 #sidebar li a:hover,
-#sidebar li a:focus { /* Added focus state for accessibility */
-    background-color: rgba(59, 130, 246, 0.1); /* Subtle background highlight */
-    color: var(--primary); /* Highlight color */
-    border-left: 4px solid var(--primary); /* Accent border */
-    outline: none; /* Remove default focus outline */
-     padding-left: calc(1rem - 4px); /* Adjust padding to keep text alignment */
+#sidebar li a:focus {
+    background-color: rgba(59, 130, 246, 0.1);
+    color: var(--primary);
+    border-left-color: var(--primary); /* Use border-left-color */
+    outline: none;
+    padding-left: calc(1rem - 4px); /* Adjust text indent */
 }
 
-/* Caixas de Resultado (excluindo lpdBreakdown) */
-#finderResultsLog, #foundCombinationDisplay, #statusArea, #strategyComparison,
-#allocationResults, #cumulativeUsage, #adjustmentLog,
-#finalSummaryTableDiv, #variationLog, #lpdBreakdown, #refinementLog {
+/* Caixas de Resultado (Output Sections) */
+.output-section {
     margin-top: 1rem;
-    padding: 0.75rem;
+    padding: 0.75rem 1rem; /* Added horizontal padding */
     border-radius: var(--border-radius);
     background-color: var(--bg-card);
     box-shadow: var(--shadow-sm);
     font-family: var(--font-mono);
     font-size: 0.85rem;
     line-height: 1.4;
-    overflow-x: auto;
-    border-left: 2px solid var(--border);
+    overflow-x: auto; /* Allow horizontal scroll if content too wide */
+    border-left: 3px solid var(--border); /* Default border */
+    scroll-margin-top: 15px; /* For sidebar navigation */
+    transition: var(--transition);
 }
 
- #refinementLog {
-    border-left-color: var(--success-dark); /* Example: Darker green */
+/* Specific border colors for sections */
+#finderResultsLog { border-left-color: var(--secondary); white-space: pre-wrap; } /* Make log respect newlines */
+#combinationSummaryTableDiv { border-left-color: var(--primary); padding-top: 0.25rem; padding-bottom: 0.25rem; } /* Reduce padding for table container */
+#statusArea { border-left-color: var(--secondary); }
+#strategyComparison { border-left-color: var(--secondary); padding-top: 0.25rem; padding-bottom: 0.25rem; } /* Reduce padding for table container */
+#allocationResults { border-left-color: var(--success); }
+#adjustmentLog { border-left-color: var(--success); }
+#cumulativeUsage { border-left-color: var(--success); }
+#variationLog { border-left-color: var(--warning); }
+#refinementLog { border-left-color: var(--success-dark); }
+#lpdBreakdown {
+    border-left-color: var(--primary-dark);
+    padding-top: 0.5rem; /* Reduce top padding for card view */
+    padding-bottom: 0.5rem;
+    background-color: var(--bg-primary); /* Match body background for this section */
+    box-shadow: none; /* Remove card shadow */
+}
+#finalSummaryTableDiv { border-left-color: var(--primary); padding-top: 0.25rem; padding-bottom: 0.25rem; } /* Reduce padding for table container */
+
+
+/* Style for log entries within output sections */
+.output-section div { /* Basic spacing for divs inside logs */
+    margin-bottom: 0.3rem;
 }
 
-/* Estilo específico para cada tipo de caixa (exceto lpdBreakdown) */
-#finderResultsLog {
-    white-space: pre-wrap;
-    border-left-color: var(--primary);
-}
-
-#foundCombinationDisplay {
-    padding: 0.75rem;
-    border: none;
-    background-color: var(--bg-tertiary);
-    font-weight: 600;
-    border-left: 2px solid var(--primary);
-}
-
-#statusArea {
-    border-left-color: var(--secondary);
-}
-
-#strategyComparison {
-    border-left-color: var(--secondary);
-}
-
-#allocationResults, #adjustmentLog, #cumulativeUsage {
-    border-left-color: var(--success);
-}
-
-#variationLog {
-    border-left-color: var(--warning);
-}
-
-#finalSummaryTableDiv {
-    border-left-color: var(--primary);
-}
 
 /* Separadores */
 hr {
@@ -300,287 +290,247 @@ hr {
 }
 
 /* Alertas e Destaques */
-.error {
-    color: var(--danger);
-    font-weight: 500;
-}
-
-.info {
-    color: var(--primary);
-}
-
-.warning {
-    color: var(--warning);
-    font-weight: 500;
-}
-
-.success {
-    color: var(--success);
-    font-weight: 500;
-}
+.error { color: var(--danger); font-weight: 500; }
+.info { color: var(--primary); }
+.warning { color: var(--warning); font-weight: 500; }
+.success { color: var(--success); font-weight: 500; }
 
 .highlight {
-    background-color: rgba(245, 158, 11, 0.15);
+    background-color: rgba(245, 158, 11, 0.15); /* Amber background */
     font-weight: 500;
     border-radius: 2px;
     padding: 0.1rem 0.3rem;
     border: none;
+    color: var(--warning-dark); /* Make text darker for contrast */
 }
 
-/* Classes de Combinação */
-.fallback-gcd {
-    color: var(--warning);
-    font-weight: 600;
-}
+/* Classes de Combinação (Finder Logs) */
+.fallback-gcd { color: var(--warning); font-weight: 600; }
+.fallback-prop { color: var(--secondary); font-weight: 600; }
+.target-section { border-top: 1px solid var(--border); padding-top: 0.75rem; margin-top: 1rem; }
+.candidate-section { border-left: 2px solid var(--border); padding-left: 0.75rem; margin: 0.5rem 0; padding-top: 0.25rem; padding-bottom: 0.25rem; }
+.fallback-section { border-top: 1px solid var(--warning-dark); padding-top: 0.75rem; margin-top: 1rem; }
+.proportional-fallback-section, .proportional-direct-section { border-top: 1px solid var(--secondary-dark); padding-top: 0.75rem; margin-top: 1rem; }
 
-.fallback-prop {
-    color: var(--secondary);
-    font-weight: 600;
-}
+/* Classes de Alocação (Result Logs) */
+.positive-diff { color: var(--success); font-weight: 500; }
+.negative-diff { color: var(--danger); font-weight: 500; }
+.zero-diff { color: var(--text-muted); }
+.violation { background-color: rgba(239, 68, 68, 0.15); color: var(--danger); border-radius: 2px; padding: 0.1rem 0.3rem; font-weight: 500; }
 
-.target-section {
-    border-top: 1px solid var(--border);
-    padding-top: 0.75rem;
-    margin-top: 1rem;
-}
-
-.candidate-section {
-    border-left: 2px solid var(--border);
-    padding-left: 0.75rem;
-    margin: 0.5rem 0;
-    padding-top: 0.25rem;
-    padding-bottom: 0.25rem;
-}
-
-.fallback-section {
-    border-top: 1px solid var(--warning-dark);
-    padding-top: 0.75rem;
-    margin-top: 1rem;
-}
-
-.proportional-fallback-section, .proportional-direct-section {
-    border-top: 1px solid var(--secondary-dark);
-    padding-top: 0.75rem;
-    margin-top: 1rem;
-}
-
-/* Classes de Alocação */
-.positive-diff {
-    color: var(--success);
-    font-weight: 500;
-}
-
-.negative-diff {
-    color: var(--danger);
-    font-weight: 500;
-}
-
-.zero-diff {
-    color: var(--text-muted);
-}
-
-.violation {
-    background-color: rgba(239, 68, 68, 0.15);
-    color: var(--danger);
-    border-radius: 2px;
-    padding: 0.1rem 0.3rem;
-    font-weight: 500;
-}
-
-.item-allocation, .adjustment-step, .variation-step { /* lpd-section removed */
+.item-allocation, .adjustment-step, .variation-step {
     border-top: 1px dashed var(--border);
     margin-top: 0.75rem;
     padding-top: 0.75rem;
 }
- /* Specific style for lpd-section inside lpdBreakdown if needed, otherwise remove default styling */
-#lpdBreakdown .lpd-section {
-    border-top: none; /* Remove border from individual items within the card view */
-     margin-top: 0;
-     padding-top: 0;
-}
-
 .usage-summary, .lpd-section-title, .comparison-title {
-    margin-top: 1rem;
+    margin-top: 0.5rem; /* Reduced top margin */
     font-weight: 600;
     color: var(--text-primary);
+    padding-bottom: 0.25rem;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 0.5rem;
 }
+.usage-summary ul { padding-left: 1.5rem; margin-top: 0.5rem; }
+.usage-summary li { margin-bottom: 0.2rem; }
 
-/* List style - keep if needed elsewhere, but not for plan-container */
-.lpd-item-list {
-    margin-left: 1.25rem;
-    list-style-type: none;
-    padding-left: 0;
-}
-.lpd-item-list li {
-    margin-bottom: 0.15rem;
-    padding: 0.15rem 0;
-}
-.lpd-total {
-    margin-top: 0.5rem;
-    font-style: italic;
-    padding-left: 1.25rem;
-    color: var(--text-muted);
-}
-
-
-/* Tabelas */
-#finalSummaryTable, #comparisonTable {
+/* Tabelas (Combination Summary, Strategy Comparison, Final Summary) */
+#combinationSummaryTable, #comparisonTable, #finalSummaryTable {
     width: 100%;
-    border-collapse: separate;
+    border-collapse: separate; /* Use separate for border-radius effect */
     border-spacing: 0;
-    margin-top: 1rem;
+    margin-top: 0.5rem; /* Reduced margin for tables within sections */
     border-radius: var(--border-radius);
-    overflow: hidden;
+    overflow: hidden; /* Clip content to border-radius */
     box-shadow: var(--shadow-sm);
+    border: 1px solid var(--border); /* Add outer border */
 }
 
-#finalSummaryTable th, #finalSummaryTable td,
-#comparisonTable th, #comparisonTable td {
-    border: 1px solid var(--border);
+#combinationSummaryTable th, #combinationSummaryTable td,
+#comparisonTable th, #comparisonTable td,
+#finalSummaryTable th, #finalSummaryTable td {
+    border-bottom: 1px solid var(--border); /* Horizontal lines */
     padding: 0.5rem 0.75rem;
     text-align: left;
-    font-size: 0.85rem;
+    font-size: 0.8rem; /* Slightly smaller table font */
+    vertical-align: middle; /* Align text vertically */
+}
+/* Remove bottom border from last row */
+#combinationSummaryTable tr:last-child td,
+#comparisonTable tr:last-child td,
+#finalSummaryTable tr:last-child td {
+    border-bottom: none;
 }
 
-#finalSummaryTable th, #comparisonTable th {
+
+/* Add vertical lines */
+#combinationSummaryTable th:not(:last-child), #combinationSummaryTable td:not(:last-child),
+#comparisonTable th:not(:last-child), #comparisonTable td:not(:last-child),
+#finalSummaryTable th:not(:last-child), #finalSummaryTable td:not(:last-child) {
+    border-right: 1px solid var(--border);
+}
+
+
+#combinationSummaryTable th, #comparisonTable th, #finalSummaryTable th {
     background-color: var(--bg-tertiary);
     font-weight: 600;
     color: var(--text-primary);
-    border-bottom: 2px solid var(--border);
+    position: sticky; /* Make header sticky */
+    top: 0; /* Stick to top */
+    z-index: 10; /* Ensure header is above rows */
 }
 
-#finalSummaryTable td:nth-child(n+2),
-#comparisonTable td:nth-child(n+2) {
+/* Right-align numeric/status columns */
+#combinationSummaryTable td:nth-child(n+3), /* MaxVar, AvgVar, Outcome */
+#comparisonTable td:nth-child(n+2), /* MaxVar, AvgVar, Outcome */
+#finalSummaryTable td:nth-child(n+2) { /* Qtd, Empenho, Dif, Var */
     text-align: right;
+    font-family: var(--font-mono); /* Use monospace for numbers */
 }
-/* Right-align the last column (Var %) in the body too */
-#finalSummaryTable tbody td:last-child {
-    text-align: right;
+/* Ensure strategy name and combo cells are left-aligned */
+#combinationSummaryTable td:nth-child(2), /* Combo cell */
+#comparisonTable td:nth-child(1), /* Strategy Name cell */
+#finalSummaryTable td:nth-child(1) { /* Specificação cell */
+    text-align: left;
+    font-family: var(--font-mono);
 }
-
-#finalSummaryTable tr:nth-child(even),
-#comparisonTable tr:nth-child(even) {
-    background-color: rgba(255, 255, 255, 0.025);
-}
-
-#finalSummaryTable tr:hover,
-#comparisonTable tr:hover {
-    background-color: rgba(59, 130, 246, 0.05);
+#finalSummaryTable td:nth-child(1) { /* Specificação uses sans-serif */
+     font-family: var(--font-sans);
 }
 
-/* Estilo para tfoot */
+
+#combinationSummaryTable tr:nth-child(even),
+#comparisonTable tr:nth-child(even),
+#finalSummaryTable tr:nth-child(even) {
+    background-color: rgba(255, 255, 255, 0.025); /* Subtle zebra striping */
+}
+
+/* Hover effect */
+#combinationSummaryTable tr:hover,
+#comparisonTable tr:hover,
+#finalSummaryTable tr:hover {
+    background-color: rgba(59, 130, 246, 0.08); /* Slightly stronger blue on hover */
+}
+
+/* Footer style for Final Summary Table */
 #finalSummaryTable tfoot th, #finalSummaryTable tfoot td {
     font-weight: bold;
-    border-top: 2px solid var(--border);
+    border-top: 2px solid var(--border); /* Thicker top border for footer */
     background-color: var(--bg-tertiary);
+    color: var(--text-primary); /* Ensure footer text is bright */
 }
-/* Right-align the last column (Total Var %) in the footer */
-#finalSummaryTable tfoot td:last-child {
+/* Ensure footer numeric cells are right-aligned */
+#finalSummaryTable tfoot td:nth-child(n+2) {
     text-align: right;
 }
 
 
-.best-effort {
-    background-color: rgba(245, 158, 11, 0.1) !important;
-    border-left: 3px solid var(--warning);
+/* Row Highlighting and Interaction */
+.best-effort { /* For best strategy row in comparison table */
+    background-color: rgba(245, 158, 11, 0.1) !important; /* Warning color background */
+    /* border-left: 3px solid var(--warning); */ /* Indicator - removed for simplicity with cell borders */
     font-weight: 500;
 }
-
-.strategy-error-row {
-    background-color: rgba(239, 68, 68, 0.1) !important;
-    border-left: 3px solid var(--danger);
+.strategy-error-row { /* For error rows in strategy table */
+    background-color: rgba(239, 68, 68, 0.1) !important; /* Danger color background */
+    /* border-left: 3px solid var(--danger); */
+    opacity: 0.7; /* Slightly fade error rows */
+}
+.strategy-duplicate-row { /* For duplicate rows in strategy table */
+    opacity: 0.6; /* Fade duplicate rows */
+    font-style: italic;
+    color: var(--text-muted);
+}
+.strategy-duplicate-row td {
+     color: var(--text-muted) !important; /* Ensure text is muted too */
 }
 
-#comparisonTable .strategy-name {
+/* Clickable rows/cells */
+#combinationSummaryTable tbody tr, /* Make whole row clickable */
+#comparisonTable td.strategy-name { /* Only name cell clickable */
     cursor: pointer;
-    text-decoration: underline;
-    color: var(--primary);
-    text-align: left !important;
-    transition: var(--transition);
+}
+#comparisonTable td.strategy-name { /* Style strategy name */
+     text-decoration: underline;
+     color: var(--primary);
+     transition: var(--transition);
+ }
+#comparisonTable td.strategy-name:hover {
+     color: var(--primary-dark);
+ }
+
+/* Selected row in Combination Summary table */
+#combinationSummaryTable tbody tr.selected-combination {
+    background-color: rgba(59, 130, 246, 0.15) !important; /* Stronger blue */
+    /* border-left: 3px solid var(--primary); */ /* Use background instead of border */
+    font-weight: 500;
+}
+#combinationSummaryTable tbody tr.selected-combination td {
+     color: var(--text-primary); /* Ensure text is bright when selected */
 }
 
-#comparisonTable .strategy-name:hover {
-    color: var(--primary-dark);
-}
 
-.comparison-table-container.hide-errors .strategy-error-row {
-    display: none;
+/* Toggle Buttons Container */
+.toggle-buttons-container {
+    margin-top: 0.75rem; /* Space above buttons */
+    text-align: right; /* Align buttons to the right */
 }
-
-.comparison-table-container.hide-duplicates .strategy-duplicate-row {
-    display: none;
-}
-
-/* Optional: Style the duplicate button */
-#toggleDuplicatesBtn {
-    background-color: var(--secondary); /* Or choose another color */
-    margin-left: 0.5rem;
-    font-size: 0.8rem;
-    padding: 0.35rem 0.75rem;
-}
-#toggleDuplicatesBtn:hover {
-     background-color: var(--secondary-dark);
-}
-
-#toggleErrorsBtn {
+.toggle-buttons-container button {
     background-color: var(--secondary);
-    margin-left: 0.5rem;
     font-size: 0.8rem;
     padding: 0.35rem 0.75rem;
 }
-
-#toggleErrorsBtn:hover {
+.toggle-buttons-container button:hover {
     background-color: var(--secondary-dark);
 }
 
-/* Classes Específicas para Feedback Visual */
-.output-section {
-    scroll-margin-top: 15px;
-    transition: var(--transition);
-}
+
+/* Hiding rows based on container class */
+.comparison-table-container.hide-errors .strategy-error-row { display: none; }
+.comparison-table-container.hide-duplicates .strategy-duplicate-row { display: none; }
 
 
-/* --- Estilos para Montagem de Planos (Formato Cartão/Tabela) --- */
-#lpdBreakdown .plan-container { /* Increased specificity */
+/* --- Estilos para Montagem de Planos (Formato Cartão/Tabela within #lpdBreakdown) --- */
+#lpdBreakdown .plan-container {
     width: 98%;
-    max-width: 650px;
-    margin: 1rem auto;
+    max-width: 650px; /* Max width for readability */
+    margin: 1rem auto; /* Center the cards */
     background-color: var(--bg-secondary); /* Card background */
     padding: 10px 15px;
     box-shadow: var(--shadow);
     border-radius: var(--border-radius);
     border: 1px solid var(--border);
-    page-break-inside: avoid;
+    page-break-inside: avoid; /* Try to keep card content together on print */
 }
 
-#lpdBreakdown .plan-container h1 { /* Increased specificity */
+#lpdBreakdown .plan-container h1 {
     color: var(--primary);
     text-align: center;
     margin: 5px 0 10px 0;
-    font-size: 1rem;
+    font-size: 1rem; /* Slightly smaller heading */
     border-bottom: 1px solid var(--primary-dark);
     padding-bottom: 5px;
     font-weight: 600;
 }
 
-#lpdBreakdown .plan-container table { /* Increased specificity */
+#lpdBreakdown .plan-container table {
     width: 100%;
-    border-collapse: collapse;
+    border-collapse: collapse; /* Use collapse for internal borders */
     margin-bottom: 10px;
     font-size: 0.8rem;
 }
 
 #lpdBreakdown .plan-container th,
-#lpdBreakdown .plan-container td { /* Increased specificity */
+#lpdBreakdown .plan-container td {
     padding: 4px 6px;
-    border: 1px solid var(--border);
+    border: 1px solid var(--border); /* Internal borders */
     text-align: left;
     color: var(--text-secondary);
     vertical-align: middle;
 }
 
-#lpdBreakdown .plan-container th { /* Increased specificity */
-    background-color: var(--primary-dark);
+#lpdBreakdown .plan-container th {
+    background-color: var(--primary-dark); /* Darker header */
     color: white;
     font-weight: bold;
     text-align: center;
@@ -593,30 +543,25 @@ hr {
     text-align: center;
 }
 
-#lpdBreakdown .plan-container tr:nth-child(even) td { /* Increased specificity */
-     background-color: var(--bg-tertiary);
+#lpdBreakdown .plan-container tr:nth-child(even) td {
+     background-color: var(--bg-tertiary); /* Zebra striping inside card */
 }
 
-/* Total row style with !important for background */
-#lpdBreakdown .plan-container tr.total-row td { /* Increased specificity */
+/* Total row style within card */
+#lpdBreakdown .plan-container tr.total-row td {
     font-weight: bold;
-    background-color: var(--primary-light) !important; /* Add !important to ensure override */
-    color: white;
+    background-color: var(--primary-light) !important; /* Use !important if needed */
+    color: white; /* Use white text on dark blue */
+    border-top: 2px solid var(--primary-dark);
 }
-#lpdBreakdown .plan-container .total-row td:first-child { /* Increased specificity */
-     text-align: left;
-}
- /* Center align total Img and Qtd */
- #lpdBreakdown .plan-container .total-row td:nth-child(2), /* Total Img */
- #lpdBreakdown .plan-container .total-row td:nth-child(3) { /* Total Qtd */
-     text-align: center;
- }
+#lpdBreakdown .plan-container .total-row td:first-child { text-align: left; }
+#lpdBreakdown .plan-container .total-row td:nth-child(2),
+#lpdBreakdown .plan-container .total-row td:nth-child(3) { text-align: center; }
 
-/* --- NOVO: Estilo para o Bloco de Total Geral de Folhas --- */
+/* Total Sheets Summary Block (after all plan cards) */
 #lpdBreakdown .total-sheets-summary {
     text-align: center;
-    margin-top: 1.5rem;
-    margin-bottom: 0.5rem; /* Add some bottom margin */
+    margin: 1.5rem auto 0.5rem auto; /* Centered with margin */
     padding: 0.75rem;
     background-color: var(--bg-tertiary);
     border-radius: var(--border-radius);
@@ -624,66 +569,43 @@ hr {
     font-weight: bold;
     color: var(--text-primary);
     font-size: 0.9rem;
-    page-break-before: avoid; /* Try to avoid page break before this summary */
+    max-width: 650px; /* Match card width */
+    page-break-before: avoid;
 }
 
 
-/* Style for the input when warning is active */
+/* Input Warning Styles */
 #combinationSizeContainer.input-warning input[type="number"] {
     border-color: var(--danger);
     box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.2);
 }
-
-/* Initially hide the icon by default using CSS */
 #combinationSizeContainer .warning-icon {
-    display: none; /* Keep hidden by default */
-    margin-left: 8px; /* Add space between input wrapper and icon */
-    vertical-align: middle; /* Align vertically with the input wrapper */
-    /* color: var(--danger); */ /* Color is already set inline, but could be moved here */
-    /* font-weight: bold; */ /* Weight is already set inline */
-    /* cursor: help; */ /* Cursor is already set inline */
-    font-size: 1.1em; /* Optional: Make icon slightly larger if desired */
+    display: none; /* Hide by default */
+    margin-left: 8px;
+    vertical-align: middle;
+    font-size: 1.1em;
+     color: var(--danger); /* Ensure color is set */
+     cursor: help;
+     font-weight: bold;
 }
-
-/* Style to show the icon when warning is active */
 #combinationSizeContainer.input-warning .warning-icon {
-    display: inline-block; /* Show the icon next to the input wrapper */
+    display: inline-block; /* Show when warning class is present */
 }
-
-/* Target the specific input inside the wrapper div for width styling */
-/* Ensure the inner div and input are vertically aligned too */
+/* Ensure input inside the wrapper aligns */
 #combinationSizeContainer > div > input[type="number"] {
-    width: 150px;
-    max-width: 100%;
-    vertical-align: middle; /* Align input vertically if needed */
+    vertical-align: middle;
 }
-
-/* Explicitly remove any lingering absolute positioning if needed elsewhere */
-.warning-icon {
-    position: static; /* Ensure it's not absolutely positioned */
+/* Make sure the wrapper div itself aligns */
+#combinationSizeContainer > div {
+     display: inline-block; /* Crucial for alignment with icon */
+     vertical-align: middle;
 }
-
-/* --- Rest of the styles --- */
-
 
 
 /* Scrollbar customizada */
-::-webkit-scrollbar {
-    width: 8px;
-    height: 8px;
-}
-
-::-webkit-scrollbar-track {
-    background: var(--bg-tertiary);
-}
-
-::-webkit-scrollbar-thumb {
-    background: var(--border);
-    border-radius: 4px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-    background: var(--text-muted);
-}
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: var(--bg-tertiary); }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
 
 /* --- End of Base Styles --- */
