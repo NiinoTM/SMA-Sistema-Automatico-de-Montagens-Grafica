@@ -416,7 +416,6 @@ function calculateDirectProportionalCombination(parsedItemsData, maxSlotsForTarg
 
 
 // --- LÓGICA CENTRAL DO ALOCADOR (runAllocationProcess) ---
-// (This function remains unchanged)
 function runAllocationProcess(itemsToProcess, userLpdCombinationWithDuplicates, maxSlotsPerInstance) {
      console.log(`[runAllocationProcess] START. items: ${itemsToProcess?.length}, LPDs: ${userLpdCombinationWithDuplicates?.length}, MaxSlots: ${maxSlotsPerInstance}`);
 
@@ -607,29 +606,36 @@ function runAllocationProcess(itemsToProcess, userLpdCombinationWithDuplicates, 
      console.log("[runAllocatorProcess] Passo 2 Complete.");
 
 
-     // Passo 3: Correção de Variação
-     // Uses global VARIATION_LIMIT_PASS_3 from utils.js
-     console.log("[runAllocatorProcess] Starting Passo 3 (Variation Correction)...");
-     let variationLogHTML = `--- Passo 3: Correção de Variação (Alvo: ±${(VARIATION_LIMIT_PASS_3 * 100).toFixed(0)}%) ---`;
-     let madeVariationAdjustment = true; let variationLoopCounter = 0;
-     const maxVariationLoops = itemsToProcess.length * uniqueLpdValuesLocal.length * 3 + 50; // Safety break
+    // Passo 3: Correção de Variação
+    // Uses global VARIATION_LIMIT_PASS_3 from utils.js
+    console.log("[runAllocatorProcess] Starting Passo 3 (Variation Correction)...");
+    let variationLogHTML = `--- Passo 3: Correção de Variação (Alvo: ±${(VARIATION_LIMIT_PASS_3 * 100).toFixed(0)}%) ---`;
+    let madeVariationAdjustment = true;
+    let variationLoopCounter = 0;
+    const maxVariationLoops = itemsToProcess.length * uniqueLpdValuesLocal.length * 3 + 50; // Safety break
 
-     while (madeVariationAdjustment && variationLoopCounter < maxVariationLoops) {
-        variationLoopCounter++; madeVariationAdjustment = false;
+    while (madeVariationAdjustment && variationLoopCounter < maxVariationLoops) {
+        variationLoopCounter++;
+        madeVariationAdjustment = false;
 
-        // Find the item with the worst variation violation
         let worstViolation = { index: -1, percentageDiff: 0, absDifference: 0 };
         currentItemAllocations.forEach((alloc, i) => {
-             if (alloc && !alloc.error && alloc.difference !== undefined) {
-                const item = itemsToProcess[i]; if (!item) return;
-                const targetAmount = item.amount; let currentAbsPercentage = 0; const currentAbsDifference = Math.abs(alloc.difference);
-                if (targetAmount > 0) { currentAbsPercentage = currentAbsDifference / targetAmount; }
-                else if (alloc.sum !== 0) { currentAbsPercentage = Infinity; } // Deviation from zero target
+            if (alloc && !alloc.error && alloc.difference !== undefined) {
+                const item = itemsToProcess[i];
+                if (!item) return;
+                const targetAmount = item.amount;
+                let currentAbsPercentage = 0;
+                const currentAbsDifferenceValue = Math.abs(alloc.difference);
+                if (targetAmount > 0) {
+                    currentAbsPercentage = currentAbsDifferenceValue / targetAmount;
+                } else if (alloc.sum !== 0) {
+                    currentAbsPercentage = Infinity;
+                }
 
                 if (currentAbsPercentage > VARIATION_LIMIT_PASS_3) {
-                    // Find the worst violation (highest percentage, tie-break with highest absolute diff)
-                    if (currentAbsPercentage > worstViolation.percentageDiff || (currentAbsPercentage === worstViolation.percentageDiff && currentAbsDifference > worstViolation.absDifference)) {
-                        worstViolation = { index: i, percentageDiff: currentAbsPercentage, absDifference: currentAbsDifference };
+                    if (currentAbsPercentage > worstViolation.percentageDiff ||
+                        (currentAbsPercentage === worstViolation.percentageDiff && currentAbsDifferenceValue > worstViolation.absDifference)) {
+                        worstViolation = { index: i, percentageDiff: currentAbsPercentage, absDifference: currentAbsDifferenceValue };
                     }
                 }
             }
@@ -637,111 +643,170 @@ function runAllocationProcess(itemsToProcess, userLpdCombinationWithDuplicates, 
 
         if (worstViolation.index === -1) {
             variationLogHTML += `\nIter ${variationLoopCounter}: Nenhum item > ±${(VARIATION_LIMIT_PASS_3 * 100).toFixed(0)}%. Passo 3 completo.`;
-            break; // No violations found, exit loop
+            break;
         }
 
         const itemIdx = worstViolation.index;
         const currentAlloc = currentItemAllocations[itemIdx];
-        if (!currentAlloc || !itemsToProcess[itemIdx]) { console.error(`Passo 3: Índice inválido (${itemIdx}) ou item/alocação ausente.`); variationLogHTML += `\n<span class="error">Erro interno no Passo 3 (índice ${itemIdx}).</span>`; break; }
-        const originalAmount = itemsToProcess[itemIdx].amount;
-        variationLogHTML += `<div class="variation-step">Iter ${variationLoopCounter}: Corrigindo Especificação ${itemsToProcess[itemIdx].originalIndex + 1} ('${itemsToProcess[itemIdx].details}') - Dif: ${currentAlloc.difference.toFixed(0)} (${(worstViolation.percentageDiff * 100).toFixed(1)}%)`;
+        const primaryItem = itemsToProcess[itemIdx]; // Renamed for clarity
+        if (!currentAlloc || !primaryItem) {
+            console.error(`Passo 3: Índice inválido (${itemIdx}) ou item/alocação ausente.`);
+            variationLogHTML += `\n<span class="error">Erro interno no Passo 3 (índice ${itemIdx}).</span>`;
+            break;
+        }
+        const originalAmountPrimary = primaryItem.amount;
+        variationLogHTML += `<div class="variation-step">Iter ${variationLoopCounter}: Corrigindo Especificação ${primaryItem.originalIndex + 1} ('${primaryItem.details}') - Dif: ${currentAlloc.difference.toFixed(0)} (${(worstViolation.percentageDiff * 100).toFixed(1)}%)`;
 
-        // Try to find the best single LPD adjustment (add or remove)
         let bestFix = { action: null, lpd: null, finalAbsDiff: Math.abs(currentAlloc.difference), finalPercDiff: worstViolation.percentageDiff };
         const currentCombinationCopy = Array.isArray(currentAlloc.combination) ? [...currentAlloc.combination] : [];
 
-        // Try removing each unique LPD present in the current combination
         for (const lpdToRemove of new Set(currentCombinationCopy)) {
             if (!lpdToRemove || typeof lpdToRemove !== 'number') continue;
             const newSum = currentAlloc.sum - lpdToRemove;
-            const newAbsDiff = Math.abs(newSum - originalAmount);
-            let newPercentageDiff = originalAmount > 0 ? newAbsDiff / originalAmount : (newSum === 0 ? 0 : Infinity);
-
-            // Prefer fixes that meet the target limit
+            const newAbsDiff = Math.abs(newSum - originalAmountPrimary);
+            let newPercentageDiff = originalAmountPrimary > 0 ? newAbsDiff / originalAmountPrimary : (newSum === 0 ? 0 : Infinity);
             if (newPercentageDiff <= VARIATION_LIMIT_PASS_3) {
-                 // If this fix meets the limit and is better than the current best fix, take it
-                 if (newAbsDiff < bestFix.finalAbsDiff || (newAbsDiff === bestFix.finalAbsDiff && bestFix.finalPercDiff > VARIATION_LIMIT_PASS_3)) {
-                     bestFix = { action: 'remove', lpd: lpdToRemove, finalAbsDiff: newAbsDiff, finalPercDiff: newPercentageDiff };
-                 }
-            } else { // If it doesn't meet the limit, only consider it if it's better than the current best AND the current best doesn't meet the limit either
-                 if (newAbsDiff < bestFix.finalAbsDiff && bestFix.finalPercDiff > VARIATION_LIMIT_PASS_3) {
-                     bestFix = { action: 'remove', lpd: lpdToRemove, finalAbsDiff: newAbsDiff, finalPercDiff: newPercentageDiff };
-                 }
+                if (newAbsDiff < bestFix.finalAbsDiff || (newAbsDiff === bestFix.finalAbsDiff && bestFix.finalPercDiff > VARIATION_LIMIT_PASS_3)) {
+                    bestFix = { action: 'remove', lpd: lpdToRemove, finalAbsDiff: newAbsDiff, finalPercDiff: newPercentageDiff };
+                }
+            } else {
+                if (newAbsDiff < bestFix.finalAbsDiff && bestFix.finalPercDiff > VARIATION_LIMIT_PASS_3) {
+                    bestFix = { action: 'remove', lpd: lpdToRemove, finalAbsDiff: newAbsDiff, finalPercDiff: newPercentageDiff };
+                }
             }
         }
 
-        // Try adding each available LPD type (if slots allow)
         for (const lpdToAdd of uniqueLpdValuesLocal) {
-            if (maxSlotsIsFinite && currentRemainingSlots[lpdToAdd] <= 0) continue; // Skip if no slots left
+            if (maxSlotsIsFinite && currentRemainingSlots[lpdToAdd] <= 0) continue;
             const newSum = currentAlloc.sum + lpdToAdd;
-            const newAbsDiff = Math.abs(newSum - originalAmount);
-            let newPercentageDiff = originalAmount > 0 ? newAbsDiff / originalAmount : (newSum === 0 ? 0 : Infinity);
-
-            // Prefer fixes that meet the target limit
+            const newAbsDiff = Math.abs(newSum - originalAmountPrimary);
+            let newPercentageDiff = originalAmountPrimary > 0 ? newAbsDiff / originalAmountPrimary : (newSum === 0 ? 0 : Infinity);
             if (newPercentageDiff <= VARIATION_LIMIT_PASS_3) {
-                 if (newAbsDiff < bestFix.finalAbsDiff || (newAbsDiff === bestFix.finalAbsDiff && bestFix.finalPercDiff > VARIATION_LIMIT_PASS_3)) {
-                     bestFix = { action: 'add', lpd: lpdToAdd, finalAbsDiff: newAbsDiff, finalPercDiff: newPercentageDiff };
-                 }
-            } else { // If it doesn't meet the limit, only consider if better than current best (which also doesn't meet limit)
-                 if (newAbsDiff < bestFix.finalAbsDiff && bestFix.finalPercDiff > VARIATION_LIMIT_PASS_3) {
-                     bestFix = { action: 'add', lpd: lpdToAdd, finalAbsDiff: newAbsDiff, finalPercDiff: newPercentageDiff };
-                 }
+                if (newAbsDiff < bestFix.finalAbsDiff || (newAbsDiff === bestFix.finalAbsDiff && bestFix.finalPercDiff > VARIATION_LIMIT_PASS_3)) {
+                    bestFix = { action: 'add', lpd: lpdToAdd, finalAbsDiff: newAbsDiff, finalPercDiff: newPercentageDiff };
+                }
+            } else {
+                if (newAbsDiff < bestFix.finalAbsDiff && bestFix.finalPercDiff > VARIATION_LIMIT_PASS_3) {
+                    bestFix = { action: 'add', lpd: lpdToAdd, finalAbsDiff: newAbsDiff, finalPercDiff: newPercentageDiff };
+                }
             }
         }
 
-        // Apply the best fix found
         if (bestFix.action) {
-             madeVariationAdjustment = true; // Mark that we made a change in this loop
-             const lpd = bestFix.lpd;
-             variationLogHTML += ` -> Ação: <span class="info">${bestFix.action === 'remove' ? 'REMOVER' : 'ADICIONAR'} ${lpd}</span>`;
+            madeVariationAdjustment = true;
+            const lpdInvolved = bestFix.lpd;
+            const itemIndexPrimary = itemIdx; // Index of the item being corrected
 
-             if (bestFix.action === 'remove') {
-                const indexToRemove = currentItemAllocations[itemIdx].combination.indexOf(lpd);
-                if (indexToRemove > -1) {
-                    currentItemAllocations[itemIdx].combination.splice(indexToRemove, 1);
-                    currentItemAllocations[itemIdx].sum -= lpd;
-                    currentItemAllocations[itemIdx].difference -= lpd; // Or recalculate: sum - originalAmount
-                    if (maxSlotsIsFinite) { currentRemainingSlots[lpd]++; } // Return slot
-                } else { console.error(`Erro VFix: remover ${lpd} não encontrado em ${itemIdx}`); variationLogHTML += ` <span class="error">(Erro ao remover!)</span>`; madeVariationAdjustment = false; /* Stop if error */ }
-             } else { // Add
-                currentItemAllocations[itemIdx].combination.push(lpd);
-                currentItemAllocations[itemIdx].combination.sort((a, b) => a - b); // Keep sorted
-                currentItemAllocations[itemIdx].sum += lpd;
-                currentItemAllocations[itemIdx].difference += lpd; // Or recalculate: sum - originalAmount
+            variationLogHTML += ` -> Ação: <span class="info">${bestFix.action === 'remove' ? 'REMOVER' : 'ADICIONAR'} ${lpdInvolved}</span>`;
+
+            if (bestFix.action === 'remove') {
+                const lpdIndexInPrimaryItem = currentItemAllocations[itemIndexPrimary].combination.indexOf(lpdInvolved);
+                if (lpdIndexInPrimaryItem > -1) {
+                    currentItemAllocations[itemIndexPrimary].combination.splice(lpdIndexInPrimaryItem, 1);
+                    currentItemAllocations[itemIndexPrimary].sum -= lpdInvolved;
+                    currentItemAllocations[itemIndexPrimary].difference = currentItemAllocations[itemIndexPrimary].sum - itemsToProcess[itemIndexPrimary].amount;
+                    
+                    variationLogHTML += ` (Plano ${lpdInvolved} liberado da Espec ${itemsToProcess[itemIndexPrimary].originalIndex + 1} ('${itemsToProcess[itemIndexPrimary].details}'))`;
+
+                    let reAssignedToRecipient = false;
+                    if (itemsToProcess.length > 1) { // Only attempt re-assignment if there are other items
+                        let bestRecipientForMove = {
+                            index: -1,
+                            smallestResultingAbsPercDiff: Infinity,
+                            originalAbsDiffOfRecipientForTieBreak: Infinity // Initialize to a high value for tie-breaking logic
+                        };
+
+                        for (let k = 0; k < currentItemAllocations.length; k++) {
+                            if (k === itemIndexPrimary) continue;
+
+                            const recipientAlloc = currentItemAllocations[k];
+                            const recipientItem = itemsToProcess[k];
+                            if (!recipientAlloc || recipientAlloc.error || !recipientItem) continue;
+
+                            const recipientTarget = recipientItem.amount;
+                            const simulatedSumForRecipient = recipientAlloc.sum + lpdInvolved;
+                            const simulatedDifferenceForRecipient = simulatedSumForRecipient - recipientTarget;
+                            const simulatedAbsPercDiffForRecipient = recipientTarget > 0 ? Math.abs(simulatedDifferenceForRecipient / recipientTarget) : (simulatedSumForRecipient === 0 ? 0 : Infinity);
+
+                            if (simulatedAbsPercDiffForRecipient < bestRecipientForMove.smallestResultingAbsPercDiff) {
+                                bestRecipientForMove = {
+                                    index: k,
+                                    smallestResultingAbsPercDiff: simulatedAbsPercDiffForRecipient,
+                                    originalAbsDiffOfRecipientForTieBreak: Math.abs(recipientAlloc.difference)
+                                };
+                            } else if (simulatedAbsPercDiffForRecipient === bestRecipientForMove.smallestResultingAbsPercDiff) {
+                                if (Math.abs(recipientAlloc.difference) > bestRecipientForMove.originalAbsDiffOfRecipientForTieBreak) {
+                                     bestRecipientForMove.index = k;
+                                     bestRecipientForMove.originalAbsDiffOfRecipientForTieBreak = Math.abs(recipientAlloc.difference);
+                                }
+                            }
+                        }
+
+                        if (bestRecipientForMove.index !== -1) {
+                            const recipientIdx = bestRecipientForMove.index;
+                            currentItemAllocations[recipientIdx].combination.push(lpdInvolved);
+                            currentItemAllocations[recipientIdx].combination.sort((a, b) => a - b);
+                            currentItemAllocations[recipientIdx].sum += lpdInvolved;
+                            currentItemAllocations[recipientIdx].difference = currentItemAllocations[recipientIdx].sum - itemsToProcess[recipientIdx].amount;
+                            reAssignedToRecipient = true;
+
+                            const finalPercDiffRecipient = itemsToProcess[recipientIdx].amount > 0 ? Math.abs(currentItemAllocations[recipientIdx].difference / itemsToProcess[recipientIdx].amount) : (currentItemAllocations[recipientIdx].sum === 0 ? 0 : Infinity);
+                            variationLogHTML += ` -> Plano ${lpdInvolved} MOVIMENTADO para Espec ${itemsToProcess[recipientIdx].originalIndex + 1} ('${itemsToProcess[recipientIdx].details}'). Nova Dif Recip: ${currentItemAllocations[recipientIdx].difference.toFixed(0)} (${(finalPercDiffRecipient * 100).toFixed(1)}%)`;
+                            if (finalPercDiffRecipient <= VARIATION_LIMIT_PASS_3) variationLogHTML += ` <span class="success">(OK Recip)</span>`; else variationLogHTML += ` <span class="warning">(Alto Recip)</span>`;
+                        }
+                    }
+
+                    if (!reAssignedToRecipient) {
+                        variationLogHTML += ` -> <span class="warning">Plano ${lpdInvolved} não pôde ser movimentado. Retornado ao pool.</span>`;
+                        if (maxSlotsIsFinite) {
+                            currentRemainingSlots[lpdInvolved]++;
+                        }
+                    }
+                } else {
+                    variationLogHTML += ` <span class="error">(Erro ao localizar LPD ${lpdInvolved} para remover da Espec ${itemsToProcess[itemIndexPrimary].originalIndex + 1}!)</span>`;
+                    madeVariationAdjustment = false;
+                }
+            } else if (bestFix.action === 'add') {
+                currentItemAllocations[itemIndexPrimary].combination.push(lpdInvolved);
+                currentItemAllocations[itemIndexPrimary].combination.sort((a, b) => a - b);
+                currentItemAllocations[itemIndexPrimary].sum += lpdInvolved;
+                currentItemAllocations[itemIndexPrimary].difference = currentItemAllocations[itemIndexPrimary].sum - itemsToProcess[itemIndexPrimary].amount;
                 if (maxSlotsIsFinite) {
-                    if (currentRemainingSlots[lpd] > 0) {
-                         currentRemainingSlots[lpd]--; // Consume slot
+                    if (currentRemainingSlots[lpdInvolved] > 0) {
+                        currentRemainingSlots[lpdInvolved]--;
                     } else {
-                         console.error(`Erro VFix: Adicionar ${lpd} sem imagens restantes! Item ${itemIdx}`); variationLogHTML += ` <span class="error">(Erro de imagem ao adicionar!)</span>`;
-                         // We might need to revert the addition here or handle the error state
-                         currentItemAllocations[itemIdx].combination.pop(); // Revert addition
-                         currentItemAllocations[itemIdx].sum -= lpd;
-                         currentItemAllocations[itemIdx].difference -= lpd;
-                         madeVariationAdjustment = false; // Stop if error
+                        const addedLpdIndex = currentItemAllocations[itemIndexPrimary].combination.lastIndexOf(lpdInvolved);
+                        if (addedLpdIndex > -1) currentItemAllocations[itemIndexPrimary].combination.splice(addedLpdIndex, 1);
+                        currentItemAllocations[itemIndexPrimary].sum -= lpdInvolved;
+                        currentItemAllocations[itemIndexPrimary].difference = currentItemAllocations[itemIndexPrimary].sum - itemsToProcess[itemIndexPrimary].amount;
+                        variationLogHTML += ` <span class="error">(Erro Crítico: Imagem ${lpdInvolved} indisponível no pool para adicionar!)</span>`;
+                        madeVariationAdjustment = false;
                     }
                 }
-             }
+            }
 
-             // Log result of adjustment (only if no error occurred)
-             if (madeVariationAdjustment) {
-                 const finalPercDiffCheck = originalAmount > 0 ? Math.abs(currentItemAllocations[itemIdx].difference / originalAmount) : (currentItemAllocations[itemIdx].sum === 0 ? 0 : Infinity);
-                 variationLogHTML += ` -> Nova Dif: ${currentItemAllocations[itemIdx].difference.toFixed(0)} (${(finalPercDiffCheck * 100).toFixed(1)}%)`;
-                 if (finalPercDiffCheck <= VARIATION_LIMIT_PASS_3) { variationLogHTML += ` <span class="success">(OK)</span>`; }
-                 else { variationLogHTML += ` <span class="warning">(Ainda Alto)</span>`; }
-                 if (maxSlotsIsFinite) { variationLogHTML += `, Imagens Rem ${lpd}: ${currentRemainingSlots[lpd]}`; }
-             }
-
+            if (madeVariationAdjustment) {
+                const itemActuallyAdjusted = itemsToProcess[itemIndexPrimary];
+                const allocActuallyAdjusted = currentItemAllocations[itemIndexPrimary];
+                const finalPercDiffOfPrimaryItem = itemActuallyAdjusted.amount > 0 ? Math.abs(allocActuallyAdjusted.difference / itemActuallyAdjusted.amount) : (allocActuallyAdjusted.sum === 0 ? 0 : Infinity);
+                variationLogHTML += ` -> Nova Dif Espec ${itemActuallyAdjusted.originalIndex + 1}: ${allocActuallyAdjusted.difference.toFixed(0)} (${(finalPercDiffOfPrimaryItem * 100).toFixed(1)}%)`;
+                if (finalPercDiffOfPrimaryItem <= VARIATION_LIMIT_PASS_3) variationLogHTML += ` <span class="success">(OK)</span>`; else variationLogHTML += ` <span class="warning">(Ainda Alto)</span>`;
+                if (maxSlotsIsFinite && lpdInvolved) {
+                    variationLogHTML += `, Imagens Rem ${lpdInvolved}: ${currentRemainingSlots[lpdInvolved] !== undefined ? currentRemainingSlots[lpdInvolved] : 'N/A'}`;
+                }
+            }
         } else {
-             // No beneficial adjustment found for the worst offender
-             variationLogHTML += ` -> <span class="warning">Nenhuma correção encontrada para este item. Parando Passo 3.</span>`;
-             madeVariationAdjustment = false; // Exit the while loop
+            variationLogHTML += ` -> <span class="warning">Nenhuma correção encontrada para este item. Parando Passo 3.</span>`;
+            madeVariationAdjustment = false;
         }
-        variationLogHTML += `</div>`; // Close variation-step
-     } // End while loop
+        variationLogHTML += `</div>`;
+    } // End while madeVariationAdjustment
 
-     if (variationLoopCounter >= maxVariationLoops) { variationLogHTML += `\n<span class="error">Parado Passo 3: Limite de loop (${maxVariationLoops}) atingido.</span>`; }
-     logs.variation = variationLogHTML;
-     console.log("[runAllocatorProcess] Passo 3 Complete.");
+    if (variationLoopCounter >= maxVariationLoops) {
+        variationLogHTML += `\n<span class="error">Parado Passo 3: Limite de loop (${maxVariationLoops}) atingido.</span>`;
+    }
+    logs.variation = variationLogHTML;
+    console.log("[runAllocatorProcess] Passo 3 Complete.");
 
 
      // Passo Final: Contagem de Uso Final por Item e Acumulado
@@ -780,7 +845,6 @@ function runAllocationProcess(itemsToProcess, userLpdCombinationWithDuplicates, 
 
 
 // --- Iterative Refinement Function ---
-// (This function remains unchanged)
 /**
  * Attempts to improve an allocation result by swapping LPDs between
  * items with large positive and negative differences.
@@ -1019,7 +1083,6 @@ function refineAllocationResult(resultEntry) {
 
 
 // --- Helper Function to Generate Plan Assembly Data ---
-// (This function remains unchanged)
 /**
  * Generates the structured data for plan assembly based on final allocations.
  * @param {Array} finalItems - The items array used in the allocation (ordered by processing).
