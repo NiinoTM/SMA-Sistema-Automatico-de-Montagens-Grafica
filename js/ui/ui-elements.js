@@ -35,7 +35,20 @@ function getElements() {
         // Dynamically updated table references
         combinationSummaryTable: null,
         comparisonTable: null,
-        comparisonTableContainer: null
+        comparisonTableContainer: null,
+
+        // Calculator Dialog Elements
+        openCalculatorDialogBtn: document.getElementById('openCalculatorDialogBtn'),
+        calculatorDialog: document.getElementById('calculatorDialog'),
+        closeCalculatorDialogBtn: document.getElementById('closeCalculatorDialogBtn'),
+        materialWidthInput: document.getElementById('materialWidth'), // Likely unused by packer component
+        materialHeightInput: document.getElementById('materialHeight'), // Likely unused
+        itemWidthInput: document.getElementById('itemWidth'), // Likely unused
+        itemHeightInput: document.getElementById('itemHeight'), // Likely unused
+        calculateImagesBtn: document.getElementById('calculateImagesBtn'), // Likely unused
+        calculatorResultDiv: document.getElementById('calculatorResult'), // Likely unused
+        applyCalculatorResultBtn: document.getElementById('applyPackerResultBtn'),
+        packerHostContainer: document.getElementById('packerHostContainer'), // Added this line
     };
 }
 

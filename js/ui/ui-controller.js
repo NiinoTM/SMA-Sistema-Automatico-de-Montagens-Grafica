@@ -5,6 +5,7 @@ import { getRawInputs, validateAndParseCoreInputs, setupInputEventListeners } fr
 import { toggleFinderLog, findBestResultFromStrategyList, updateComparisonTableHighlight } from './ui-utils.js';
 import { displayCombinationSummary } from './ui-display-combinations.js';
 import { displayStrategyComparisonTable, displayStrategyDetails } from './ui-display-strategies.js';
+import { setupDialogEventListeners } from './ui-dialog-handler.js';
 
 // Assuming core logic functions are globally available or would be imported:
 // import { findBestLpdCombination, calculateDirectProportionalCombination } from '../core/combination-finder.js';
@@ -22,6 +23,15 @@ window.toggleFinderLog = toggleFinderLog;
 
 document.addEventListener('DOMContentLoaded', () => {
     setupInputEventListeners();
+});
+
+// Expose functions for HTML onclick attributes
+window.initiateProcess = initiateProcess;
+window.toggleFinderLog = toggleFinderLog;
+
+document.addEventListener('DOMContentLoaded', () => {
+    setupInputEventListeners(); // Sets up listeners for tableData, maxSlots, combinationSize
+    setupDialogEventListeners();   // Sets up listeners for the calculator dialog
 });
 
 function initiateProcess(mode) {
@@ -293,27 +303,24 @@ function runAllocatorPhaseInternal_Refactored() {
         { name: "Ordem Original de Entrada", sortFn: (items) => [...items] },
         { name: "Quantidade Ascendente", sortFn: (items) => [...items].sort((a, b) => a.amount - b.amount) },
         { name: "Quantidade Descendente", sortFn: (items) => [...items].sort((a, b) => b.amount - a.amount) },
-        { name: "Especificação Ascendente (A-Z)", sortFn: (items) => [...items].sort((a, b) => (a.details || '').localeCompare(b.details || '')) },
-        { name: "Especificação Descendente (Z-A)", sortFn: (items) => [...items].sort((a, b) => (b.details || '').localeCompare(a.details || '')) },
         { name: "Quantidade Meio-para-Fora (Baixo/Cima)", sortFn: (items) => { const s = [...items].sort((a, b) => a.amount - b.amount), r = [], n = s.length; if (n === 0) return []; const m = Math.floor(n / 2); r.push(s[m]); let l = m - 1, g = m + 1; while (l >= 0 || g < n) { if (l >= 0) r.push(s[l--]); if (g < n) r.push(s[g++]); } return r; }},
         { name: "Quantidade Meio-para-Fora (Cima/Baixo)", sortFn: (items) => { const s = [...items].sort((a, b) => a.amount - b.amount), r = [], n = s.length; if (n === 0) return []; const m = Math.floor(n / 2); r.push(s[m]); let l = m - 1, g = m + 1; while (l >= 0 || g < n) { if (g < n) r.push(s[g++]); if (l >= 0) r.push(s[l--]); } return r; }},
-        { name: "Qtd Asc, Especificação Asc (Desempate)", sortFn: (items) => [...items].sort((a, b) => a.amount - b.amount || (a.details || '').localeCompare(b.details || '')) },
-        // --- NEW Heuristics using pre-calculated values ---
-        { name: "Maior Dificuldade Potencial Primeiro", sortFn: (items) => [...items].sort((a, b) => { const diffB = (potentialDifferences.get(b.originalIndex) || { potentialDiff: Infinity }).potentialDiff; const diffA = (potentialDifferences.get(a.originalIndex) || { potentialDiff: Infinity }).potentialDiff; return diffB - diffA || b.amount - a.amount; }) },
-        { name: "Menor Dificuldade Potencial Primeiro", sortFn: (items) => [...items].sort((a, b) => { const diffA = (potentialDifferences.get(a.originalIndex) || { potentialDiff: Infinity }).potentialDiff; const diffB = (potentialDifferences.get(b.originalIndex) || { potentialDiff: Infinity }).potentialDiff; return diffA - diffB || a.amount - b.amount; }) },
-        { name: "Maior Demanda Estimada Primeiro (Avg LPD)", sortFn: (items) => [...items].sort((a, b) => { const demandB = averageLPDValue > 0 ? (b.amount / averageLPDValue) : (b.amount > 0 ? Infinity : 0); const demandA = averageLPDValue > 0 ? (a.amount / averageLPDValue) : (a.amount > 0 ? Infinity : 0); return demandB - demandA || b.amount - a.amount; }) },
-        { name: "Menor Flexibilidade Primeiro (LPDs <= Alvo)", sortFn: (items) => [...items].sort((a, b) => { const countA = currentUniqueLpds.filter(lpd => lpd > 0 && lpd <= a.amount).length; const countB = currentUniqueLpds.filter(lpd => lpd > 0 && lpd <= b.amount).length; return countA - countB || a.amount - b.amount; }) },
-        { name: "Maior Granularidade Necessária Primeiro (Alvo/MenorLPD)", sortFn: (items) => [...items].sort((a, b) => { const ratioB = smallestPositiveLPD > 0 ? (b.amount / smallestPositiveLPD) : (b.amount > 0 ? Infinity : 0); const ratioA = smallestPositiveLPD > 0 ? (a.amount / smallestPositiveLPD) : (a.amount > 0 ? Infinity : 0); return ratioB - ratioA || b.amount - a.amount; }) },
-        { name: "Dependência LPD Crítico Mais Raro Primeiro", sortFn: (items) => {
-             const findCriticalLPD = (itemAmount) => { let maxFound = -1; for (const lpd of currentUniqueLpds) { if (lpd > 0 && lpd <= itemAmount && lpd > maxFound) maxFound = lpd; } return maxFound > 0 ? maxFound : 0; };
-             return [...items].sort((a, b) => {
-                 const critA = findCriticalLPD(a.amount); const critB = findCriticalLPD(b.amount);
-                 const availA = (critA > 0 && currentInitialSlots.hasOwnProperty(critA)) ? currentInitialSlots[critA] : Infinity;
-                 const availB = (critB > 0 && currentInitialSlots.hasOwnProperty(critB)) ? currentInitialSlots[critB] : Infinity;
-                 if (availA !== availB) return availA - availB; // Rarest first
-                 return b.amount - a.amount; // Tie-break: larger amount first
-             }); }
-        }
+        //{ name: "Qtd Asc, Especificação Asc (Desempate)", sortFn: (items) => [...items].sort((a, b) => a.amount - b.amount || (a.details || '').localeCompare(b.details || '')) },
+        //{ name: "Maior Dificuldade Potencial Primeiro", sortFn: (items) => [...items].sort((a, b) => { const diffB = (potentialDifferences.get(b.originalIndex) || { potentialDiff: Infinity }).potentialDiff; const diffA = (potentialDifferences.get(a.originalIndex) || { potentialDiff: Infinity }).potentialDiff; return diffB - diffA || b.amount - a.amount; }) },
+        //{ name: "Menor Dificuldade Potencial Primeiro", sortFn: (items) => [...items].sort((a, b) => { const diffA = (potentialDifferences.get(a.originalIndex) || { potentialDiff: Infinity }).potentialDiff; const diffB = (potentialDifferences.get(b.originalIndex) || { potentialDiff: Infinity }).potentialDiff; return diffA - diffB || a.amount - b.amount; }) },
+        //{ name: "Maior Demanda Estimada Primeiro (Avg LPD)", sortFn: (items) => [...items].sort((a, b) => { const demandB = averageLPDValue > 0 ? (b.amount / averageLPDValue) : (b.amount > 0 ? Infinity : 0); const demandA = averageLPDValue > 0 ? (a.amount / averageLPDValue) : (a.amount > 0 ? Infinity : 0); return demandB - demandA || b.amount - a.amount; }) },
+        //{ name: "Menor Flexibilidade Primeiro (LPDs <= Alvo)", sortFn: (items) => [...items].sort((a, b) => { const countA = currentUniqueLpds.filter(lpd => lpd > 0 && lpd <= a.amount).length; const countB = currentUniqueLpds.filter(lpd => lpd > 0 && lpd <= b.amount).length; return countA - countB || a.amount - b.amount; }) },
+        //{ name: "Maior Granularidade Necessária Primeiro (Alvo/MenorLPD)", sortFn: (items) => [...items].sort((a, b) => { const ratioB = smallestPositiveLPD > 0 ? (b.amount / smallestPositiveLPD) : (b.amount > 0 ? Infinity : 0); const ratioA = smallestPositiveLPD > 0 ? (a.amount / smallestPositiveLPD) : (a.amount > 0 ? Infinity : 0); return ratioB - ratioA || b.amount - a.amount; }) },
+        //{ name: "Dependência LPD Crítico Mais Raro Primeiro", sortFn: (items) => {
+        //     const findCriticalLPD = (itemAmount) => { let maxFound = -1; for (const lpd of currentUniqueLpds) { if (lpd > 0 && lpd <= itemAmount && lpd > maxFound) maxFound = lpd; } return maxFound > 0 ? maxFound : 0; };
+        //     return [...items].sort((a, b) => {
+        //         const critA = findCriticalLPD(a.amount); const critB = findCriticalLPD(b.amount);
+        //         const availA = (critA > 0 && currentInitialSlots.hasOwnProperty(critA)) ? currentInitialSlots[critA] : Infinity;
+        //         const availB = (critB > 0 && currentInitialSlots.hasOwnProperty(critB)) ? currentInitialSlots[critB] : Infinity;
+        //         if (availA !== availB) return availA - availB; // Rarest first
+        //         return b.amount - a.amount; // Tie-break: larger amount first
+        //     }); }
+        //}
         // Add other strategies as needed
     ];
 

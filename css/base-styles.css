@@ -658,4 +658,142 @@ hr {
 ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
 ::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
 
+/* Wrapper for input with a button next to it */
+.input-with-button-wrapper {
+    display: flex;
+    align-items: center; /* Vertically align input and button */
+}
+
+.input-with-button-wrapper input[type="number"] {
+    flex-grow: 1; /* Allow input to take available space */
+    /* max-width adjustment might be needed depending on desired layout */
+    margin-right: 0.5rem; /* Space between input and button */
+}
+
+/* Icon Button Style */
+button.icon-button {
+    padding: 0.4rem 0.6rem; /* Adjust padding for icon buttons */
+    font-size: 0.9rem; /* Adjust icon size if needed */
+    line-height: 1; /* Ensure icon is centered */
+    background-color: var(--secondary);
+    min-width: auto; /* Allow button to be as small as its content */
+}
+button.icon-button:hover {
+    background-color: var(--secondary-dark);
+}
+button.icon-button i { /* If using Font Awesome */
+    margin: 0; /* Remove any default margins from the icon itself */
+}
+
+
+/* Dialog Styles */
+.dialog-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.6); /* Semi-transparent overlay */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000; /* Ensure it's on top */
+    backdrop-filter: blur(3px);
+}
+
+.dialog-content {
+    background-color: var(--bg-secondary);
+    padding: 1.5rem 2rem;
+    border-radius: var(--border-radius);
+    box-shadow: 0 5px 15px rgba(0,0,0,0.5);
+    width: 90%;
+    max-width: 500px; /* Max width of the dialog */
+    border: 1px solid var(--border);
+    position: relative; /* For positioning the close button */
+}
+
+.dialog-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 0.75rem;
+    margin-bottom: 1rem;
+}
+
+.dialog-header h2 {
+    margin: 0;
+    font-size: 1.2rem;
+    color: var(--text-primary);
+}
+
+.dialog-content .close-button {
+    background: none;
+    border: none;
+    font-size: 1.8rem;
+    font-weight: bold;
+    color: var(--text-muted);
+    cursor: pointer;
+    padding: 0.2rem 0.5rem;
+    line-height: 1;
+    box-shadow: none;
+}
+.dialog-content .close-button:hover {
+    color: var(--text-primary);
+}
+
+
+.dialog-body {
+    margin-bottom: 1.5rem;
+    max-height: 60vh; /* Allow body to scroll if content is too long */
+    overflow-y: auto;
+    padding-right: 0.5rem; /* Space for scrollbar */
+}
+
+.dialog-body .calc-input-group {
+    margin-bottom: 0.75rem;
+}
+.dialog-body .calc-input-group label {
+    font-size: 0.85rem;
+    margin-bottom: 0.2rem;
+    color: var(--text-secondary);
+}
+.dialog-body .calc-input-group input[type="number"] {
+    width: 100%; /* Make calc inputs full width within dialog */
+    max-width: none;
+    background-color: var(--bg-tertiary);
+}
+.calc-hr {
+    border-color: var(--border);
+    margin: 1rem 0;
+}
+
+
+#calculatorResult {
+    padding: 0.5rem;
+    background-color: var(--bg-tertiary);
+    border-radius: var(--border-radius);
+    border: 1px solid var(--border);
+    min-height: 1.5em; /* Ensure it has some height even when empty */
+    text-align: center;
+    font-size: 1rem;
+}
+
+.dialog-footer {
+    text-align: right;
+    border-top: 1px solid var(--border);
+    padding-top: 1rem;
+}
+.dialog-footer button {
+    margin-left: 0.5rem;
+}
+
+/* Ensure primary-action button style is available if not already global */
+button.primary-action {
+    background-color: var(--primary);
+}
+button.primary-action:hover {
+    background-color: var(--primary-dark);
+}
+
 /* --- End of Base Styles --- */

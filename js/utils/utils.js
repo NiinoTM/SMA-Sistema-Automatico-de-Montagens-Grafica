@@ -10,7 +10,7 @@ let globalMaxSlotsDisplay = "Ilimitado"; // Exibição Máx Imagens
 let globalCurrentlyDisplayedStrategyName = null; // Track displayed strategy
 
 // --- REGRAS DE CONFIGURAÇÃO ---
-const MIN_LPD_VALUE = 0; // Valor Mínimo do Plano
+const MIN_LPD_VALUE = 0; // Quantidade Mínima de Folhas
 const OBLIGATORY_RANGE = 5000; // Intervalo Obrigatório
 const TARGET_RANGE_BELOW = 500; // Intervalo Alvo Abaixo
 const TARGET_RANGE_ABOVE = 1000; // Intervalo Alvo Acima
