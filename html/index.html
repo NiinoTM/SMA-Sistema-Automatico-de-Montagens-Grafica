@@ -4,9 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sistema de Montagem de Planos (Método Selecionável)</title>
-    <link rel="stylesheet" href="base-styles.css">             <!-- Base styles for all media -->
-    <link rel="stylesheet" href="responsive-styles.css" media="screen"> <!-- Styles for screen adaptations -->
-    <link rel="stylesheet" href="print-styles.css" media="print">    <!-- Styles specifically for printing -->
+    <link rel="stylesheet" href="../css/base-styles.css">
+    <link rel="stylesheet" href="../css/responsive-styles.css" media="screen">
+    <link rel="stylesheet" href="../css/print-styles.css" media="print">
 </head>
 <body>
 
@@ -103,8 +103,12 @@ Especificação C	20000
     <div id="finalSummaryTableDiv" class="output-section" style="display: none;">Tabela Comparativa Final da Alocação aparecerá aqui...</div>
 
     <!-- SCRIPTS -->
-    <script src="utils.js" defer></script>
-    <script src="processing-logic.js" defer></script>
-    <script src="ui-controller.js" defer></script>
+    <script src="../js/utils/utils.js" defer></script>
+    <script src="../js/core/input-parser.js" defer></script>
+    <script src="../js/core/combination-finder.js" defer></script>
+    <script src="../js/core/assembly-generator.js" defer></script>
+    <script src="../js/core/allocator.js" defer></script>
+    <script src="../js/core/refinement.js" defer></script>
+    <script src="../js/ui/ui-controller.js" defer></script>
 </body>
 </html>
