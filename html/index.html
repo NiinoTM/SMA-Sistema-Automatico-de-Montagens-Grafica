@@ -103,12 +103,23 @@ Especificação C	20000
     <div id="finalSummaryTableDiv" class="output-section" style="display: none;">Tabela Comparativa Final da Alocação aparecerá aqui...</div>
 
     <!-- SCRIPTS -->
-    <script src="../js/utils/utils.js" defer></script>
-    <script src="../js/core/input-parser.js" defer></script>
-    <script src="../js/core/combination-finder.js" defer></script>
-    <script src="../js/core/assembly-generator.js" defer></script>
-    <script src="../js/core/allocator.js" defer></script>
-    <script src="../js/core/refinement.js" defer></script>
-    <script src="../js/ui/ui-controller.js" defer></script>
+
+        <script src="../js/utils/utils.js" defer></script>
+
+        <!-- In index.html -->
+        <script type="module" src="../js/ui/ui-state.js"></script>
+        <script type="module" src="../js/ui/ui-elements.js"></script>
+        <script type="module" src="../js/ui/ui-input-handler.js"></script>
+        <script type="module" src="../js/ui/ui-utils.js"></script>
+        <script type="module" src="../js/ui/ui-display-combinations.js"></script>
+        <script type="module" src="../js/ui/ui-display-strategies.js"></script>
+        <script type="module" src="../js/ui/ui-controller.js"></script>
+
+        <!-- Core logic scripts would also ideally be modules or bundled -->
+        <script src="../js/core/input-parser.js" defer></script>
+        <script src="../js/core/combination-finder.js" defer></script>
+        <script src="../js/core/assembly-generator.js" defer></script>
+        <script src="../js/core/allocator.js" defer></script>
+        <script src="../js/core/refinement.js" defer></script>
 </body>
 </html>
