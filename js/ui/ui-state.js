@@ -1,3 +1,5 @@
+// --- START OF FILE ui-state.js ---
+
 // --- START OF FILE js/ui/ui-state.js ---
 
 const initialState = {
@@ -11,6 +13,10 @@ const initialState = {
     maxSlotsPerInstance: Infinity,
     maxSlotsDisplay: "Ilimitado",
     currentlyDisplayedStrategyName: null,
+
+    // New state for combination summary display
+    fullCombinationPerformanceData: [], // Holds all processed combination results
+    displayedCombinationCount: 7,       // Initial number of combinations to display
 
     // Other state if needed
     // e.g., isLoading: false,
@@ -29,6 +35,9 @@ export function updateAppState(partialState) {
 
 export function resetAppState() {
     appState = { ...initialState };
+    // Ensure new state properties are also reset
+    appState.fullCombinationPerformanceData = [];
+    appState.displayedCombinationCount = 7;
     combinationStrategyResultsCache = {};
     console.log("App state reset.");
 }

@@ -1,3 +1,5 @@
+// --- START OF FILE refinement.js ---
+
 /**
  * Attempts to improve an allocation result by swapping LPDs between
  * items with large positive and negative differences.
@@ -5,8 +7,9 @@
  * @returns {{refinedResultEntry: object, log: string}} - Object containing the potentially refined result and the log.
  */
 function refineAllocationResult(resultEntry) {
-    console.log(`[refineAllocationResult] START for strategy: ${resultEntry.strategyName}`);
-    let refinementLog = [`--- Registro de Refinamento Iterativo (Estratégia: ${resultEntry.strategyName}) ---`];
+    const strategyName = resultEntry && resultEntry.strategyName ? resultEntry.strategyName : "Estratégia Desconhecida";
+    console.log(`[Refinement] START for strategy: ${strategyName}`);
+    let refinementLog = [`--- Registro de Refinamento Iterativo (Estratégia: ${strategyName}) ---`];
 
     // --- Configuration ---
     const MAX_REFINEMENT_PASSES = 5;        // Max attempts to improve
@@ -16,13 +19,12 @@ function refineAllocationResult(resultEntry) {
     // Input Validation
     if (!resultEntry || !resultEntry.resultData || !resultEntry.resultData.itemAllocations || !resultEntry.itemsUsed) {
         refinementLog.push("<span class='error'>Erro: Dados de entrada inválidos para refinamento.</span>");
-        console.error("[refineAllocationResult] Invalid input resultEntry:", resultEntry);
-        // Return original entry, indicating no refinement possible due to input error
+        console.error(`[Refinement] Invalid input resultEntry for strategy ${strategyName}:`, resultEntry);
         return { refinedResultEntry: resultEntry, log: refinementLog.join('\n') };
     }
      if (resultEntry.hasAllocationError) {
          refinementLog.push("<span class='warning'>Aviso: Refinamento pulado pois a estratégia inicial continha erros de alocação.</span>");
-         console.log(`[refineAllocationResult] Skipping refinement for ${resultEntry.strategyName} due to initial allocation errors.`);
+         console.log(`[Refinement] Skipping refinement for ${strategyName} due to initial allocation errors.`);
          return { refinedResultEntry: resultEntry, log: refinementLog.join('\n') };
     }
 
@@ -174,7 +176,7 @@ function refineAllocationResult(resultEntry) {
     // 5. Final update if improvements were made
     if (overallImprovementMade) {
         refinementLog.push("\n<span class='success'>Refinamento concluído. Aplicando melhorias.</span>");
-        console.log(`[refineAllocationResult] Improvements made for ${resultEntry.strategyName}. Updating resultEntry.`);
+        console.log(`[Refinement] Improvements made for ${strategyName}. Updating resultEntry.`);
 
         // Update the original resultEntry with the refined allocations
         resultEntry.resultData.itemAllocations = currentAllocations;
@@ -197,7 +199,7 @@ function refineAllocationResult(resultEntry) {
              }
 
 
-            console.log(`[refineAllocationResult] Recalculated metrics: MaxVar=${resultEntry.maxVariation.toFixed(4)}, AvgVar=${resultEntry.avgVariation.toFixed(4)}, MeetsLimit=${resultEntry.meetsLimit}`);
+            console.log(`[Refinement] For ${strategyName}, Recalculated metrics: MaxVar=${resultEntry.maxVariation.toFixed(4)}, AvgVar=${resultEntry.avgVariation.toFixed(4)}, MeetsLimit=${resultEntry.meetsLimit}`);
 
             // Optionally, regenerate Plan Assembly Data if it depends on finalUsageCounts
             // This depends if generatePlanAssemblyData uses finalUsageCounts or just the final 'combination' array
@@ -210,26 +212,27 @@ function refineAllocationResult(resultEntry) {
                      globalUserLpdCombinationWithDuplicates, // Need the original combo used
                      globalMaxSlotsPerInstance // Need max slots
                  );
-                  console.log(`[refineAllocationResult] Regenerated plan assembly data after refinement.`);
+                  console.log(`[Refinement] For ${strategyName}, Regenerated plan assembly data after refinement.`);
             } catch (assemblyError) {
-                 console.error(`[refineAllocationResult] Error regenerating plan assembly data after refinement:`, assemblyError);
+                 console.error(`[Refinement] For ${strategyName}, Error regenerating plan assembly data after refinement:`, assemblyError);
                  resultEntry.planAssemblyDataForExport = null; // Clear potentially outdated data
             }
 
 
         } catch (metricError) {
-            console.error("[refineAllocationResult] Error recalculating metrics after refinement:", metricError);
+            console.error(`[Refinement] For ${strategyName}, Error recalculating metrics after refinement:`, metricError);
              // Keep old metrics but maybe flag an issue?
              resultEntry.meetsLimit = false; // Assume limit not met if calculation fails
         }
 
     } else {
         refinementLog.push("\nNenhuma melhoria encontrada ou aplicada durante o refinamento.");
-        console.log(`[refineAllocationResult] No effective improvements made for ${resultEntry.strategyName}.`);
+        console.log(`[Refinement] No effective improvements made for ${strategyName}.`);
     }
 
-    console.log(`[refineAllocationResult] END for strategy: ${resultEntry.strategyName}`);
+    console.log(`[Refinement] END for strategy: ${strategyName}`);
     // Return the potentially modified resultEntry and the log
     return { refinedResultEntry: resultEntry, log: refinementLog.join('\n') };
 }
 // --- END Refinement Function ---
+// --- END OF FILE refinement.js ---

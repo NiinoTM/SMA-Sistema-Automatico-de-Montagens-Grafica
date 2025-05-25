@@ -6,7 +6,6 @@ import { toggleFinderLog, findBestResultFromStrategyList, updateComparisonTableH
 import { displayCombinationSummary } from './ui-display-combinations.js';
 import { displayStrategyComparisonTable, displayStrategyDetails } from './ui-display-strategies.js';
 import { setupDialogEventListeners } from './ui-dialog-handler.js';
-
 // Assuming core logic functions are globally available or would be imported:
 // import { findBestLpdCombination, calculateDirectProportionalCombination } from '../core/combination-finder.js';
 // import { runAllocationProcess } from '../core/allocator.js';
@@ -22,16 +21,8 @@ window.toggleFinderLog = toggleFinderLog;
 // set up in displayStrategyComparisonTable, so they don't need to be on window.
 
 document.addEventListener('DOMContentLoaded', () => {
-    setupInputEventListeners();
-});
-
-// Expose functions for HTML onclick attributes
-window.initiateProcess = initiateProcess;
-window.toggleFinderLog = toggleFinderLog;
-
-document.addEventListener('DOMContentLoaded', () => {
     setupInputEventListeners(); // Sets up listeners for tableData, maxSlots, combinationSize
-    setupDialogEventListeners();   // Sets up listeners for the calculator dialog
+    setupDialogEventListeners(); // Sets up listeners for the calculator dialog
 });
 
 function initiateProcess(mode) {
@@ -40,7 +31,6 @@ function initiateProcess(mode) {
     const elements = getCachedElements();
     clearUIOutputs();
     resetAppState(); // Resets appState and combinationStrategyResultsCache
-
     const rawInputs = getRawInputs();
     const parsedCoreInputs = validateAndParseCoreInputs(rawInputs);
 
@@ -49,7 +39,7 @@ function initiateProcess(mode) {
     updateAppState({
         originalItems: parsedCoreInputs.parsedItems,
         maxSlotsPerInstance: parsedCoreInputs.maxSlotsPerInstance,
-        maxSlotsDisplay: String(parsedCoreInputs.maxSlotsPerInstance)
+        maxSlotsDisplay: String(parsedCoreInputs.maxSlotsPerInstance === Infinity ? "Ilimitado" : parsedCoreInputs.maxSlotsPerInstance)
     });
 
     if (elements.finderStatusDisplay) elements.finderStatusDisplay.innerHTML = `Gerando Combinações (Modo: ${mode})...`;
@@ -80,6 +70,14 @@ function initiateProcess(mode) {
                 if (elements.finderResultsLog && (combinationGenerationResult.status === "Error" || combinationGenerationResult.combinations.length === 0)) {
                      elements.finderResultsLog.classList.remove('log-hidden'); // Show log
                 }
+                 // Clear other dependent sections if no combinations are generated
+                const sectionsToHide = [
+                    elements.allocatorTitle, elements.statusArea, elements.strategyComparison,
+                    elements.detailsSeparator, elements.detailsTitle, elements.allocationResults,
+                    elements.adjustmentLog, elements.variationLog, elements.cumulativeUsage,
+                    elements.refinementLog, elements.lpdBreakdown, elements.finalSummaryTableDiv
+                ];
+                sectionsToHide.forEach(el => { if (el) el.style.display = 'none'; });
                 return;
             }
 
@@ -91,8 +89,33 @@ function initiateProcess(mode) {
 
             function processNextCombination() {
                 if (combinationsProcessedCount >= totalCombinationsToProcess) {
-                    if (elements.finderStatusDisplay) elements.finderStatusDisplay.innerHTML = `<b>Processamento completo.</b> ${combinationPerformanceData.length} combinações avaliadas.`;
-                    displayCombinationSummary(combinationPerformanceData, handleCombinationClick);
+                    if (elements.finderStatusDisplay) elements.finderStatusDisplay.innerHTML = `<b>Processamento completo.</b> ${combinationPerformanceData.length} combinações inicialmente avaliadas.`;
+                    
+                    // 1. Filter out combinations with errors
+                    const validCombinationPerformances = combinationPerformanceData.filter(perf => !perf.bestResult.hasAllocationError);
+
+                    // 2. Sort the valid combinations:
+                    //    - Primary: avgVariation ascending
+                    //    - Secondary: maxVariation ascending
+                    //    - Tertiary: combination length ascending (more concise preferred)
+                    validCombinationPerformances.sort((a, b) => {
+                        const resA = a.bestResult; const resB = b.bestResult;
+                        // Errors already filtered, so no need to check resA.hasAllocationError here
+                        const avgDiff = (resA.avgVariation ?? Infinity) - (resB.avgVariation ?? Infinity);
+                        if (Math.abs(avgDiff) > 1e-9) return avgDiff; // Use epsilon for float comparison
+
+                        const maxDiff = (resA.maxVariation ?? Infinity) - (resB.maxVariation ?? Infinity);
+                        if (Math.abs(maxDiff) > 1e-9) return maxDiff;
+
+                        return (a.combination?.length ?? Infinity) - (b.combination?.length ?? Infinity);
+                    });
+                    
+                    // Store the filtered and sorted data
+                    updateAppState({
+                        fullCombinationPerformanceData: [...validCombinationPerformances], // Store a copy
+                        displayedCombinationCount: 7 // Reset to initial display count
+                    });
+                    displayCombinationSummary(handleCombinationClick); // Now fetches data from appState
                     return;
                 }
 
@@ -152,7 +175,6 @@ function handleCombinationClick(encodedComboString, clickedRowElement) {
     const comboString = decodeURIComponent(encodedComboString);
     const elements = getCachedElements();
     console.log(`Displaying results for combination: ${comboString}`);
-
     // Highlight clicked row in Combination Summary Table
     const combTable = elements.combinationSummaryTable; // Re-fetch in case it was re-rendered
     if (combTable) {
@@ -216,31 +238,36 @@ function handleCombinationClick(encodedComboString, clickedRowElement) {
     } else {
         if (elements.statusArea) elements.statusArea.innerHTML = `<span class="error">Nenhum resultado de estratégia padrão encontrado para [${currentAppState.userLpdCombinationWithDuplicates.join(', ')}]</span>`;
         // Clear detail sections
+        const detailDivsToClear = [
+            elements.allocationResults, elements.adjustmentLog, elements.variationLog,
+            elements.cumulativeUsage, elements.refinementLog, elements.lpdBreakdown, elements.finalSummaryTableDiv
+        ];
+        detailDivsToClear.forEach(div => { if (div) div.innerHTML = 'Nenhum detalhe para exibir.'; });
+        if (elements.detailsTitle) elements.detailsTitle.innerHTML = 'Resultados Detalhados da Alocação';
     }
 }
 
 function handleStrategyClick(encodedStrategyName) {
     const strategyName = decodeURIComponent(encodedStrategyName);
     updateAppState({ currentlyDisplayedStrategyName: strategyName });
-
     const currentAppState = getAppState();
     const selectedResult = currentAppState.strategyResults.find(res => res.strategyName === strategyName);
 
     if (!selectedResult) {
         console.error(`Could not find strategy result for ${strategyName} in current app state.`);
         // Display error or clear details
+        const elements = getCachedElements();
+        if(elements.statusArea) elements.statusArea.innerHTML = `<span class="error">Erro: Detalhes da estratégia "${strategyName}" não encontrados.</span>`;
         return;
     }
     // Pass the specific result and the whole appState (for context like originalItems)
     displayStrategyDetails(selectedResult, currentAppState);
 }
 
-
 function runAllocatorPhaseInternal_Refactored() {
     // This function now relies on appState for its primary inputs.
     const currentAppState = getAppState();
-    console.log("[runAllocatorPhaseInternal_Refactored] START with appState:", currentAppState);
-
+    console.log("[runAllocatorPhaseInternal_Refactored] START with appState:", JSON.parse(JSON.stringify(currentAppState))); // Log a copy
     const {
         originalItems, userLpdCombinationWithDuplicates, uniqueLpdValues,
         initialTotalSlotsPerValue, maxSlotsPerInstance
@@ -321,7 +348,6 @@ function runAllocatorPhaseInternal_Refactored() {
         //         return b.amount - a.amount; // Tie-break: larger amount first
         //     }); }
         //}
-        // Add other strategies as needed
     ];
 
     let localStrategyResults = [];
@@ -333,19 +359,27 @@ function runAllocatorPhaseInternal_Refactored() {
         let allocationOutcome = runAllocationProcess(itemsForThisStrategy, [...currentCombo], maxSlotsPerInstance);
 
         let hasErrorInAlloc = false;
-        if (!allocationOutcome || !allocationOutcome.itemAllocations) { hasErrorInAlloc = true; }
-        else {
-            for(const alloc of allocationOutcome.itemAllocations) {
-                if (alloc && alloc.error) { hasErrorInAlloc = true; break; }
-                 const itemForAlloc = itemsForThisStrategy.find(itm => itm.originalIndex === alloc.originalIndex); // This assumes alloc has originalIndex
-                 if (itemForAlloc && itemForAlloc.amount > 0 && alloc.sum === 0 && alloc.combination && alloc.combination.length === 0 && !alloc.error) {
-                    alloc.error = "Soma 0 para alvo > 0 (Falha DP?)";
+        if (!allocationOutcome || !allocationOutcome.itemAllocations) {
+            hasErrorInAlloc = true;
+            if (!allocationOutcome) allocationOutcome = {};
+            if (!allocationOutcome.itemAllocations) allocationOutcome.itemAllocations = []; // Ensure it's an array for safety
+            if (!allocationOutcome.logs) allocationOutcome.logs = { adjustment: '<span class="error">Falha catastrófica no alocador.</span>', variation: '' };
+            console.error(`[UIController] Strategy ${strategy.name}: runAllocationProcess returned null or no itemAllocations.`);
+        } else {
+            // Iterate through individual item allocations to check for errors
+            for (const alloc of allocationOutcome.itemAllocations) {
+                if (alloc && alloc.error) {
                     hasErrorInAlloc = true;
-                 }
+                    console.warn(`[UIController] Strategy ${strategy.name}: Item allocation error: ${alloc.error}`);
+                    break; // Found an error, strategy has error
+                }
             }
         }
-        if (!hasErrorInAlloc && allocationOutcome && allocationOutcome.error) hasErrorInAlloc = true;
-
+        // Check if runAllocationProcess itself returned a top-level error (e.g., from input validation inside it)
+        if (!hasErrorInAlloc && allocationOutcome && allocationOutcome.error) {
+            hasErrorInAlloc = true;
+            console.warn(`[UIController] Strategy ${strategy.name}: runAllocationProcess returned top-level error: ${allocationOutcome.error}`);
+        }
 
         let calculatedMaxVar = Infinity, calculatedAvgVar = Infinity;
         if (!hasErrorInAlloc) {
@@ -387,13 +421,16 @@ function runAllocatorPhaseInternal_Refactored() {
         }
     }
 
-    // Sort results
+    // Sort results (will be re-sorted after filtering in initiateProcess)
+    // This initial sort is for pre-calculating display strings correctly before filtering duplicates.
     localStrategyResults.sort((a, b) => {
         if (a.hasAllocationError && !b.hasAllocationError) return 1;
         if (!a.hasAllocationError && b.hasAllocationError) return -1;
         const avgDiff = (a.avgVariation ?? Infinity) - (b.avgVariation ?? Infinity);
-        if (avgDiff !== 0) return avgDiff;
-        return (a.maxVariation ?? Infinity) - (b.maxVariation ?? Infinity);
+        if (Math.abs(avgDiff) > 1e-9) return avgDiff;
+        const maxDiff = (a.maxVariation ?? Infinity) - (b.maxVariation ?? Infinity);
+         if (Math.abs(maxDiff) > 1e-9) return maxDiff;
+        return (a.combination?.length ?? Infinity) - (b.combination?.length ?? Infinity);
     });
 
     // Identify Duplicates & Pre-calculate Display Strings
@@ -418,12 +455,19 @@ function runAllocatorPhaseInternal_Refactored() {
         }
         const displaySummarySignature = `${res.displayMaxVarStr}-${res.displayAvgVarStr}-${res.displayOutcomeStr}`;
         const assemblyString = res.planAssemblyDataForExport ? JSON.stringify(res.planAssemblyDataForExport) : 'null_assembly';
-        res.isDuplicateResult = (assemblyString !== 'null_assembly' && encounteredAssemblies.has(assemblyString)) || encounteredDisplaySummaries.has(displaySummarySignature);
-        if (assemblyString !== 'null_assembly') encounteredAssemblies.add(assemblyString);
+        
+        // A result is a duplicate if its assembly (if valid) OR its display summary has been seen.
+        // Error results are not considered for duplication based on assembly, only on display summary.
+        if (res.hasAllocationError) {
+            res.isDuplicateResult = encounteredDisplaySummaries.has(displaySummarySignature);
+        } else {
+             res.isDuplicateResult = (assemblyString !== 'null_assembly' && encounteredAssemblies.has(assemblyString)) || encounteredDisplaySummaries.has(displaySummarySignature);
+             if (assemblyString !== 'null_assembly') encounteredAssemblies.add(assemblyString);
+        }
         encounteredDisplaySummaries.add(displaySummarySignature);
     });
 
-    console.log("[runAllocatorPhaseInternal_Refactored] END. Returning sorted results.");
+    console.log("[runAllocatorPhaseInternal_Refactored] END. Returning results.");
     return localStrategyResults;
 }
 // --- END OF FILE js/ui/ui-controller.js ---
