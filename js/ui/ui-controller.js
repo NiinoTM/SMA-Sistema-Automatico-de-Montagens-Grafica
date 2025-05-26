@@ -14,9 +14,16 @@ import { setupDialogEventListeners } from './ui-dialog-handler.js';
 // import { calculateMaxVariation, calculateAverageVariation, formatNumberPtBR } from '../utils/utils.js';
 // import { REPROCESS_VARIATION_LIMIT, VARIATION_LIMIT_PASS_3 } from '../utils/utils.js'; // Constants
 
+// For PDF Export
+const remote = require('@electron/remote'); // <<<< CHANGED THIS LINE
+const fs = require('fs');
+const path = require('path');
+
+
 // Expose functions for HTML onclick attributes
 window.initiateProcess = initiateProcess;
 window.toggleFinderLog = toggleFinderLog;
+window.exportToPdf = exportToPdf; 
 // Note: toggleErrorStrategies and toggleDuplicateStrategies are now called via event listeners
 // set up in displayStrategyComparisonTable, so they don't need to be on window.
 
@@ -24,6 +31,86 @@ document.addEventListener('DOMContentLoaded', () => {
     setupInputEventListeners(); // Sets up listeners for tableData, maxSlots, combinationSize
     setupDialogEventListeners(); // Sets up listeners for the calculator dialog
 });
+
+async function exportToPdf() {
+    const elements = getCachedElements();
+    const exportButton = document.getElementById('exportPdfBtn');
+
+    if (!elements.lpdBreakdown || elements.lpdBreakdown.style.display === 'none' ||
+        !elements.finalSummaryTableDiv || elements.finalSummaryTableDiv.style.display === 'none') {
+        
+        remote.dialog.showMessageBox(remote.getCurrentWindow(), {
+            type: 'warning',
+            title: 'Exportação de PDF Indisponível',
+            message: 'Os dados necessários para o PDF (Montagem dos Planos e/ou Tabela Comparativa) não foram gerados ou não estão visíveis.',
+            detail: 'Por favor, processe os dados primeiro para habilitar a exportação.'
+        });
+        if (elements.finderStatusDisplay) elements.finderStatusDisplay.innerHTML = `<span class="warning">Exportação de PDF indisponível. Gere os resultados primeiro.</span>`;
+        return;
+    }
+    
+    if (elements.finderStatusDisplay) elements.finderStatusDisplay.innerHTML = 'Gerando PDF...';
+    if (exportButton) exportButton.disabled = true;
+
+
+    const currentWindow = remote.getCurrentWindow();
+    const webContents = currentWindow.webContents;
+
+    const options = {
+        marginsType: 0, // 0 for default, 1 for none, 2 for minimum
+        pageSize: 'A4',
+        printBackground: true,
+        printSelectionOnly: false,
+        landscape: false
+    };
+
+    try {
+        const data = await webContents.printToPDF(options);
+
+        const { filePath, canceled } = await remote.dialog.showSaveDialog(currentWindow, {
+            title: 'Salvar PDF',
+            defaultPath: `Montagem_Planos_${new Date().toISOString().slice(0, 10).replace(/-/g, '')}.pdf`,
+            filters: [
+                { name: 'Arquivos PDF', extensions: ['pdf'] }
+            ]
+        });
+
+        if (canceled || !filePath) {
+            if (elements.finderStatusDisplay) elements.finderStatusDisplay.innerHTML = 'Exportação de PDF cancelada.';
+            if (exportButton) exportButton.disabled = false;
+            return;
+        }
+
+        fs.writeFile(filePath, data, (error) => {
+            if (error) {
+                console.error('Falha ao salvar PDF:', error);
+                if (elements.finderStatusDisplay) elements.finderStatusDisplay.innerHTML = `<span class="error">Falha ao salvar PDF: ${error.message}</span>`;
+                remote.dialog.showErrorBox('Erro ao Salvar PDF', `Não foi possível salvar o arquivo PDF.\n${error.message}`);
+            } else {
+                console.log('PDF salvo com sucesso em:', filePath);
+                if (elements.finderStatusDisplay) elements.finderStatusDisplay.innerHTML = `<span class="success">PDF salvo com sucesso!</span>`;
+                remote.dialog.showMessageBox(currentWindow, {
+                    type: 'info',
+                    title: 'PDF Salvo',
+                    message: 'O arquivo PDF foi salvo com sucesso.',
+                    detail: filePath
+                }).then(() => {
+                    // Optionally open the file or containing folder
+                    // remote.shell.openPath(filePath); // Opens the PDF
+                    remote.shell.showItemInFolder(filePath); // Opens folder and selects file
+                });
+            }
+            if (exportButton) exportButton.disabled = false;
+        });
+
+    } catch (error) {
+        console.error('Falha ao gerar PDF:', error);
+        if (elements.finderStatusDisplay) elements.finderStatusDisplay.innerHTML = `<span class="error">Falha ao gerar PDF: ${error.message}</span>`;
+        remote.dialog.showErrorBox('Erro ao Gerar PDF', `Não foi possível gerar o arquivo PDF.\n${error.message}`);
+        if (exportButton) exportButton.disabled = false;
+    }
+}
+
 
 function initiateProcess(mode) {
     console.clear();
@@ -470,4 +557,3 @@ function runAllocatorPhaseInternal_Refactored() {
     console.log("[runAllocatorPhaseInternal_Refactored] END. Returning results.");
     return localStrategyResults;
 }
-// --- END OF FILE js/ui/ui-controller.js ---

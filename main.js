@@ -1,5 +1,6 @@
 const { app, BrowserWindow, Menu, shell } = require('electron');
 const path = require('path');
+require('@electron/remote/main').initialize(); // <<<< ADD THIS LINE
 
 let mainWindow;
 let manualWindow;
@@ -12,10 +13,12 @@ function createWindow() {
     webPreferences: {
       nodeIntegration: true, // Allows renderer process to use Node.js (for simplicity here)
       contextIsolation: false, // For simplicity; consider true + preload script for production
+      // enableRemoteModule: true, // <<<< REMOVE OR SET TO FALSE
       devTools: true // Enable DevTools by default for development
     },
     icon: path.join(__dirname, 'icon.png') // Optional: if you have an icon.png
   });
+  require('@electron/remote/main').enable(mainWindow.webContents); // <<<< ADD THIS LINE
 
   // Load the index.html of the app.
   mainWindow.loadFile('html/index.html')
@@ -43,6 +46,7 @@ function createManualWindow() {
         webPreferences: {
             nodeIntegration: false, // Manual is just HTML, no Node needed
             contextIsolation: true
+            // No need for @electron/remote here
         },
         parent: mainWindow, // Optional: make it a child of the main window
         modal: false       // Optional: if true, blocks interaction with parent
@@ -105,7 +109,10 @@ const menuTemplate = [
           // You can open a link to your project's GitHub or a simple "About" dialog
           // For a simple dialog:
           const os = require('os');
-          const dialog = require('electron').dialog;
+        // Correct way to get dialog from @electron/remote in main process if needed for consistency,
+        // but typically dialog is used directly from 'electron' in main.
+        // For this 'About' dialog, it's fine as it is, or use remote.dialog in renderer.
+          const dialog = require('electron').dialog; 
           dialog.showMessageBox(mainWindow, {
               type: 'info',
               title: 'Sobre o Sistema de Montagem de Planos',

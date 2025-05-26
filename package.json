@@ -51,5 +51,8 @@
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true
     }
+  },
+  "dependencies": {
+    "@electron/remote": "^2.1.2"
   }
 }
